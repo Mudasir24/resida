@@ -3,3 +3,4 @@ Werkzeug==3.0.1
 python-dotenv
 cloudinary
 psycopg[binary]
+gunicorn
