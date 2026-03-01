@@ -1,0 +1,359 @@
+{% extends "apartment_base.html" %}
+
+{% block content %}
+<style>
+    .registration-container {
+        max-width: 600px;
+        margin: 60px auto;
+        padding: 20px;
+    }
+
+    .registration-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 24px;
+        padding: 48px;
+        box-shadow: 0 10px 40px var(--shadow-lg);
+    }
+
+    .welcome-header {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+
+    .welcome-icon {
+        font-size: 64px;
+        margin-bottom: 16px;
+    }
+
+    .welcome-title {
+        font-size: 28px;
+        font-weight: 700;
+        margin-bottom: 8px;
+        color: var(--text-primary);
+    }
+
+    .welcome-subtitle {
+        color: var(--text-secondary);
+        font-size: 15px;
+    }
+
+    .invite-info {
+        background: var(--accent-bg);
+        border: 1px solid var(--accent-border);
+        border-radius: 16px;
+        padding: 20px;
+        margin-bottom: 32px;
+    }
+
+    .invite-flat {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--primary);
+        margin-bottom: 8px;
+    }
+
+    .invite-type {
+        font-size: 14px;
+        color: var(--text-secondary);
+        text-transform: capitalize;
+    }
+
+    .form-group {
+        margin-bottom: 24px;
+    }
+
+    .form-label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+
+    .form-label.required::after {
+        content: ' *';
+        color: var(--danger);
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 14px 16px;
+        background: var(--bg-tertiary);
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        color: var(--text-primary);
+        font-family: inherit;
+        font-size: 15px;
+        transition: all 0.3s ease;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .form-control.valid {
+        border-color: var(--success);
+    }
+
+    .form-control.invalid {
+        border-color: var(--danger);
+    }
+
+    .username-wrapper {
+        position: relative;
+    }
+
+    .username-feedback {
+        position: absolute;
+        right: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 18px;
+    }
+
+    .feedback-message {
+        font-size: 12px;
+        margin-top: 6px;
+        min-height: 18px;
+    }
+
+    .feedback-message.success {
+        color: var(--success);
+    }
+
+    .feedback-message.error {
+        color: var(--danger);
+    }
+
+    .checking {
+        color: var(--text-secondary);
+    }
+
+    .password-requirements {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 6px;
+    }
+
+    .submit-btn {
+        width: 100%;
+        padding: 16px;
+        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-top: 8px;
+    }
+
+    .submit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+    }
+
+    .terms-note {
+        text-align: center;
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 24px;
+    }
+
+    @media (max-width: 768px) {
+        .registration-card {
+            padding: 32px 24px;
+        }
+    }
+</style>
+
+<div class="registration-container">
+    <div class="registration-card">
+        <div class="welcome-header">
+            <div class="welcome-icon">🏠</div>
+            <h1 class="welcome-title">Complete Your Registration</h1>
+            <p class="welcome-subtitle">You've been invited to join {{ apartment.name }}</p>
+        </div>
+
+        <div class="invite-info">
+            <div class="invite-flat">Flat {{ invite.flat_number }}</div>
+            <div class="invite-type">{{ invite.resident_type }}</div>
+        </div>
+
+        <form method="POST" action="{{ url_for('complete_registration', slug=apartment.slug) }}">
+            <input type="hidden" name="invite_code" value="{{ invite_code }}">
+
+            <div class="form-group">
+                <label class="form-label required">Username</label>
+                <div class="username-wrapper">
+                    <input type="text" name="username" id="username" class="form-control" 
+                           placeholder="Choose a username" required 
+                           pattern="[a-zA-Z0-9_]{3,20}"
+                           title="3-20 characters, letters, numbers, and underscores only">
+                    <span class="username-feedback" id="username-feedback"></span>
+                </div>
+                <div class="feedback-message" id="username-message"></div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label required">Full Name</label>
+                <input type="text" name="full_name" class="form-control" 
+                       placeholder="Enter your full name" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label required">Email</label>
+                <input type="email" name="email" class="form-control" 
+                       placeholder="your.email@example.com" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label required">Phone Number</label>
+                <input type="tel" name="phone" class="form-control" 
+                       placeholder="+1 (555) 123-4567" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label required">Password</label>
+                <input type="password" name="password" class="form-control" 
+                       placeholder="Create a strong password" required
+                       minlength="8">
+                <div class="password-requirements">
+                    Minimum 8 characters. Use a mix of letters, numbers, and symbols.
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label required">Confirm Password</label>
+                <input type="password" name="confirm_password" class="form-control" 
+                       placeholder="Re-enter your password" required
+                       minlength="8">
+            </div>
+
+            <button type="submit" class="submit-btn">
+                ✅ Complete Registration
+            </button>
+
+            <div class="terms-note">
+                By registering, you agree to the community guidelines and terms of service
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Username availability checking with debouncing
+    const usernameInput = document.getElementById('username');
+    const usernameFeedback = document.getElementById('username-feedback');
+    const usernameMessage = document.getElementById('username-message');
+    let usernameTimeout;
+    let isUsernameValid = false;
+
+    usernameInput.addEventListener('input', function(e) {
+        const username = e.target.value.trim();
+        
+        // Clear previous timeout
+        clearTimeout(usernameTimeout);
+        
+        // Reset UI
+        usernameInput.classList.remove('valid', 'invalid');
+        usernameFeedback.textContent = '';
+        usernameMessage.textContent = '';
+        usernameMessage.className = 'feedback-message';
+        isUsernameValid = false;
+        
+        // Validate format first
+        if (username.length === 0) {
+            return;
+        }
+        
+        if (username.length < 3) {
+            usernameInput.classList.add('invalid');
+            usernameFeedback.textContent = '❌';
+            usernameMessage.textContent = 'Username must be at least 3 characters';
+            usernameMessage.classList.add('error');
+            return;
+        }
+        
+        if (username.length > 20) {
+            usernameInput.classList.add('invalid');
+            usernameFeedback.textContent = '❌';
+            usernameMessage.textContent = 'Username must be at most 20 characters';
+            usernameMessage.classList.add('error');
+            return;
+        }
+        
+        if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+            usernameInput.classList.add('invalid');
+            usernameFeedback.textContent = '❌';
+            usernameMessage.textContent = 'Only letters, numbers, and underscores allowed';
+            usernameMessage.classList.add('error');
+            return;
+        }
+        
+        // Show checking indicator
+        usernameFeedback.textContent = '⏳';
+        usernameMessage.textContent = 'Checking availability...';
+        usernameMessage.classList.add('checking');
+        
+        // Debounce API call
+        usernameTimeout = setTimeout(() => {
+            fetch('{{ url_for("check_username_availability", slug=apartment.slug) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username: username })
+            })
+            .then(response => response.json())
+            .then(data => {
+                usernameMessage.className = 'feedback-message';
+                
+                if (data.available) {
+                    usernameInput.classList.add('valid');
+                    usernameFeedback.textContent = '✅';
+                    usernameMessage.textContent = '✓ Username is available';
+                    usernameMessage.classList.add('success');
+                    isUsernameValid = true;
+                } else {
+                    usernameInput.classList.add('invalid');
+                    usernameFeedback.textContent = '❌';
+                    usernameMessage.textContent = data.message || 'Username is not available';
+                    usernameMessage.classList.add('error');
+                    isUsernameValid = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error checking username:', error);
+                usernameFeedback.textContent = '';
+                usernameMessage.textContent = '';
+            });
+        }, 500); // Wait 500ms after user stops typing
+    });
+
+    // Password confirmation validation
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const password = document.querySelector('input[name="password"]').value;
+        const confirmPassword = document.querySelector('input[name="confirm_password"]').value;
+        
+        if (password !== confirmPassword) {
+            e.preventDefault();
+            alert('⚠️ Passwords do not match!');
+            return;
+        }
+        
+        // Check if username is valid
+        if (!isUsernameValid && usernameInput.value.trim().length > 0) {
+            e.preventDefault();
+            alert('⚠️ Please choose a valid, available username!');
+            usernameInput.focus();
+            return;
+        }
+    });
+</script>
+
+{% endblock %}

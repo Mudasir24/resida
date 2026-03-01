@@ -1,0 +1,411 @@
+{% extends "apartment_base.html" %}
+
+{% block title %}Complaints & Issues — {{ apartment.name }}{% endblock %}
+
+{% block content %}
+<style>
+/* ════════════════════════════════════════════════
+   RESIDENT COMPLAINTS — Resida Design System
+   Status colours (card borders + badges):
+     open        → amber  #f59e0b
+     in_progress → blue   #3b82f6
+     resolved    → green  #10b981
+════════════════════════════════════════════════ */
+
+/* ── Complaint card: left-border status coding ── */
+.cp-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  /* BUG F fixed: default border is gold, not purple */
+  border-left: 3px solid var(--cp-accent, var(--color-accent));
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  transition: transform var(--ease-fast), box-shadow var(--ease-fast);
+}
+.cp-card:hover { transform: translateX(3px); box-shadow: var(--shadow-md); }
+.cp-card.status-open        { --cp-accent: #f59e0b; }
+.cp-card.status-in_progress { --cp-accent: #3b82f6; }
+.cp-card.status-resolved    { --cp-accent: #10b981; }
+
+/* ── Status badges ── */
+.cp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.cp-badge.open        { background: rgba(245,158,11,.10); border:1px solid rgba(245,158,11,.25); color:#d97706; }
+.cp-badge.in_progress { background: rgba(59,130,246,.10);  border:1px solid rgba(59,130,246,.25); color:#2563eb; }
+.cp-badge.resolved    { background: rgba(16,185,129,.10);  border:1px solid rgba(16,185,129,.25); color:#059669; }
+
+/* ── "Yours" tag — BUG G fixed: gold/taupe, not purple ── */
+.cp-mine-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  background: var(--color-accent-subtle);
+  border: 1px solid var(--color-accent-border);
+  color: var(--color-accent);
+  vertical-align: middle;
+  margin-left: var(--space-2);
+}
+
+/* ── Category tag (commented out in HTML, kept for later) ── */
+.cp-category-tag {
+  display: inline-block;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-default);
+  color: var(--color-text-secondary);
+  padding: 2px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  margin-bottom: var(--space-3);
+}
+
+/* ── Form controls — BUG B fixed: Resida surface tokens ── */
+.cp-form-control {
+  width: 100%;
+  padding: 10px var(--space-4);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  transition: border-color var(--ease-fast), box-shadow var(--ease-fast);
+  box-sizing: border-box;
+}
+.cp-form-control::placeholder { color: var(--color-text-tertiary); }
+.cp-form-control:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-subtle);
+}
+textarea.cp-form-control { min-height: 110px; resize: vertical; }
+select.cp-form-control { cursor: pointer; }
+
+/* ── File upload zone — BUG C fixed: Resida borders ── */
+.cp-upload-zone {
+  border: 1.5px dashed var(--color-border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-8);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--ease-fast), background var(--ease-fast);
+  background: var(--color-bg-subtle);
+}
+.cp-upload-zone:hover {
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+
+/* ── Comments thread — BUG H+I fixed: admin=gold, not purple ── */
+.cp-comment-thread { display: flex; flex-direction: column; gap: var(--space-3); margin-top: var(--space-4); }
+.cp-comment {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  max-width: 88%;
+}
+.cp-comment.admin {
+  /* BUG H fixed: gold admin authority, not purple */
+  background: var(--color-accent-subtle);
+  border-left: 3px solid var(--color-accent);
+  align-self: flex-start;
+}
+.cp-comment.resident {
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border-subtle);
+  align-self: flex-start;
+}
+.cp-comment-author {
+  font-weight: 700;
+  font-size: var(--text-xs);
+  margin-bottom: 4px;
+  /* BUG I fixed: admin=gold, resident=secondary */
+}
+.cp-comment.admin .cp-comment-author    { color: var(--color-accent); }
+.cp-comment.resident .cp-comment-author { color: var(--color-text-secondary); }
+.cp-comment-time { font-size: .68rem; color: var(--color-text-tertiary); margin-top: 4px; }
+
+/* ── Filter chips — same pattern as other pages ── */
+.cp-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 7px var(--space-4);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-full);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--ease-fast);
+  white-space: nowrap;
+}
+.cp-filter-chip:hover,
+.cp-filter-chip.active {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+
+@media (max-width: 640px) {
+  .cp-card { padding: var(--space-5); }
+  .cp-stats-grid { grid-template-columns: repeat(2,1fr) !important; }
+}
+</style>
+
+
+<!-- ══════════════════════════════════
+     PAGE HEADER — BUG A fixed
+══════════════════════════════════ -->
+<div style="margin-bottom:var(--space-8);">
+  <p style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">{{ apartment.name }}</p>
+  <h1 style="font-family:var(--font-display);font-size:var(--text-4xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-.03em;line-height:1.1;margin-bottom:var(--space-2);">Complaints & Issues</h1>
+  <p style="font-size:var(--text-base);color:var(--color-text-secondary);">Report and track issues in <strong style="color:var(--color-text-primary);">{{ apartment.name }}</strong>.</p>
+</div>
+
+
+<!-- ══════════════════════════════════
+     STAT STRIP — BUG K fixed
+══════════════════════════════════ -->
+<div class="cp-stats-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-3);margin-bottom:var(--space-8);">
+
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-left:3px solid var(--color-accent);border-radius:var(--radius-xl);padding:var(--space-5);min-width:0;">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Total</div>
+    <div style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:700;color:var(--color-text-primary);line-height:1;">{{ stats.total }}</div>
+  </div>
+
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-left:3px solid #f59e0b;border-radius:var(--radius-xl);padding:var(--space-5);min-width:0;">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Open</div>
+    <div style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:700;color:#d97706;line-height:1;">{{ stats.open }}</div>
+  </div>
+
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-left:3px solid #3b82f6;border-radius:var(--radius-xl);padding:var(--space-5);min-width:0;">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">In Progress</div>
+    <div style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:700;color:#2563eb;line-height:1;">{{ stats.in_progress }}</div>
+  </div>
+
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-left:3px solid #10b981;border-radius:var(--radius-xl);padding:var(--space-5);min-width:0;">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Resolved</div>
+    <div style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:700;color:#059669;line-height:1;">{{ stats.resolved }}</div>
+  </div>
+
+</div>
+
+
+<!-- ══════════════════════════════════
+     SUBMIT NEW COMPLAINT FORM
+     BUG B+C+D+M fixed
+══════════════════════════════════ -->
+<div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-2xl);padding:var(--space-7) var(--space-8);margin-bottom:var(--space-8);">
+  <h2 style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-.01em;margin-bottom:var(--space-6);">Submit New Complaint</h2>
+
+  <form id="complaintForm" method="POST"
+        action="{{ url_for('submit_complaint', slug=apartment.slug) }}"
+        enctype="multipart/form-data">
+
+    <!-- Title -->
+    <div style="margin-bottom:var(--space-5);">
+      <label style="display:block;font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Issue Title *</label>
+      <input type="text" name="title" class="cp-form-control" placeholder="Brief description of the issue" required>
+    </div>
+
+    <!-- Category (commented out — enable when ready) -->
+    <!--
+    <div style="margin-bottom:var(--space-5);">
+      <label style="display:block;font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Category *</label>
+      <select name="category" class="cp-form-control" required>
+        <option value="">-- Select a category --</option>
+        <option>Maintenance</option><option>Noise</option><option>Security</option>
+        <option>Cleanliness</option><option>Neighbour Dispute</option>
+        <option>Electrical</option><option>Plumbing</option>
+        <option>Common Areas</option><option>Other</option>
+      </select>
+    </div>
+    -->
+
+    <!-- Description -->
+    <div style="margin-bottom:var(--space-5);">
+      <label style="display:block;font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Detailed Description *</label>
+      <textarea name="description" class="cp-form-control" placeholder="Provide details about the issue…" required></textarea>
+    </div>
+
+    <!-- Photo upload — BUG C fixed: Resida border + gold hover -->
+    <div style="margin-bottom:var(--space-6);">
+      <label style="display:block;font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Attach Photo <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+      <div class="cp-upload-zone" onclick="document.getElementById('photo').click()">
+        <div style="font-size:2rem;opacity:.35;margin-bottom:var(--space-2);">📷</div>
+        <div style="font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:4px;">Click to upload a photo</div>
+        <div style="font-size:var(--text-xs);color:var(--color-text-tertiary);">JPG, PNG — max 5 MB</div>
+        <input type="file" id="photo" name="photo" accept="image/*" style="display:none;" onchange="previewPhoto(this)">
+      </div>
+      <!-- Preview — BUG L fixed: gold border -->
+      <div id="photoPreview" style="display:none;margin-top:var(--space-3);display:none;">
+        <img id="previewImg" src="" alt="Preview"
+             style="width:90px;height:90px;object-fit:cover;border-radius:var(--radius-md);border:1.5px solid var(--color-accent-border);">
+        <button type="button" onclick="clearPhoto()"
+                style="display:block;margin-top:var(--space-2);background:none;border:none;color:#ef4444;cursor:pointer;font-size:var(--text-xs);font-weight:600;padding:0;">✕ Remove</button>
+      </div>
+    </div>
+
+    <!-- BUG D fixed: global gold btn-primary -->
+    <button type="submit" class="btn btn-primary btn-block" id="submitBtn">Submit Complaint</button>
+
+  </form>
+</div>
+
+
+<!-- ══════════════════════════════════
+     FILTER CHIPS — BUG E fixed
+══════════════════════════════════ -->
+<div style="display:flex;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-6);">
+  <button class="cp-filter-chip active" onclick="filterComplaints('all',this)">All <span style="opacity:.7;">({{ stats.total }})</span></button>
+  <button class="cp-filter-chip" onclick="filterComplaints('open',this)">🔴 Open <span style="opacity:.7;">({{ stats.open }})</span></button>
+  <button class="cp-filter-chip" onclick="filterComplaints('in_progress',this)">🔵 In Progress <span style="opacity:.7;">({{ stats.in_progress }})</span></button>
+  <button class="cp-filter-chip" onclick="filterComplaints('resolved',this)">✅ Resolved <span style="opacity:.7;">({{ stats.resolved }})</span></button>
+</div>
+
+
+<!-- ══════════════════════════════════
+     COMPLAINTS LIST
+══════════════════════════════════ -->
+<div id="complaintsList" style="display:grid;gap:var(--space-5);">
+
+  {% if complaints %}
+    {% for c in complaints %}
+    <div class="cp-card status-{{ c.status }}" data-status="{{ c.status }}">
+
+      <!-- Card header -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-4);margin-bottom:var(--space-4);">
+        <div style="flex:1;min-width:0;">
+          <div style="font-family:var(--font-display);font-size:var(--text-lg);font-weight:700;color:var(--color-text-primary);line-height:1.25;margin-bottom:var(--space-2);">
+            {{ c.title }}
+            {% if c.is_mine %}<span class="cp-mine-tag">Yours</span>{% endif %}
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:var(--space-3);font-size:var(--text-xs);color:var(--color-text-tertiary);">
+            <span>🏠 Flat {{ c.flat }} — {{ c.resident_name }}</span>
+            <span>📅 {{ c.created_at }}</span>
+            {% if c.updated_at and c.updated_at != c.created_at %}
+            <span>🔄 Updated {{ c.updated_at }}</span>
+            {% endif %}
+          </div>
+        </div>
+        <span class="cp-badge {{ c.status }}">
+          {% if c.status == 'open' %}🔴 Open
+          {% elif c.status == 'in_progress' %}🔵 In Progress
+          {% elif c.status == 'resolved' %}✅ Resolved
+          {% endif %}
+        </span>
+      </div>
+
+      <!-- Category (commented out) -->
+      {# <span class="cp-category-tag">{{ c.category }}</span> #}
+
+      <!-- Description -->
+      <p style="font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.65;margin-bottom:var(--space-4);">{{ c.description }}</p>
+
+      <!-- Photo — BUG L fixed: gold border -->
+      {% if c.photo_url %}
+      <div style="margin-bottom:var(--space-4);">
+        <img src="{{ c.photo_url }}" alt="Complaint photo"
+             onclick="window.open('{{ c.photo_url }}','_blank')"
+             style="width:110px;height:110px;object-fit:cover;border-radius:var(--radius-lg);border:1.5px solid var(--color-accent-border);cursor:pointer;transition:transform var(--ease-fast);"
+             onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform=''">
+      </div>
+      {% endif %}
+
+      <!-- Comments thread — BUG H+I fixed: admin=gold -->
+      {% if c.comments %}
+      <div class="cp-comment-thread">
+        {% for comment in c.comments %}
+        <div class="cp-comment {{ 'admin' if comment.is_admin else 'resident' }}">
+          <div class="cp-comment-author">
+            {{ '👨‍💼 Admin' if comment.is_admin else comment.user_name }}
+          </div>
+          {{ comment.comment }}
+          <div class="cp-comment-time">{{ comment.created_at }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <!-- Add comment form — BUG J fixed: color-border-subtle divider -->
+      <div style="margin-top:var(--space-5);padding-top:var(--space-5);border-top:1px solid var(--color-border-subtle);">
+        <form method="POST"
+              action="/apartments/{{ apartment.slug }}/resident/complaints/{{ c.id }}/comment"
+              style="display:flex;gap:var(--space-3);align-items:flex-end;">
+          <textarea name="comment" class="cp-form-control"
+                    style="flex:1;min-height:64px;"
+                    placeholder="Add a comment or update…" required></textarea>
+          <button type="submit" class="btn btn-primary" style="flex-shrink:0;">💬 Comment</button>
+        </form>
+      </div>
+
+    </div>
+    {% endfor %}
+
+  {% else %}
+    <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-2xl);padding:var(--space-20) var(--space-8);text-align:center;">
+      <div style="font-size:3.5rem;opacity:.2;margin-bottom:var(--space-5);">📭</div>
+      <h2 style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-3);letter-spacing:-.02em;">No complaints yet</h2>
+      <p style="font-size:var(--text-base);color:var(--color-text-secondary);max-width:320px;margin:0 auto;">Use the form above to report an issue in your community.</p>
+    </div>
+  {% endif %}
+
+</div>
+
+
+<script>
+  /* ── Filter — JS logic preserved exactly ── */
+  function filterComplaints(status, el) {
+    document.querySelectorAll('.cp-filter-chip').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('.cp-card').forEach(card => {
+      card.style.display = (status === 'all' || card.dataset.status === status) ? '' : 'none';
+    });
+  }
+
+  /* ── Photo preview — preserved exactly ── */
+  function previewPhoto(input) {
+    if (input.files && input.files[0]) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        document.getElementById('previewImg').src = e.target.result;
+        document.getElementById('photoPreview').style.display = 'block';
+      };
+      reader.readAsDataURL(input.files[0]);
+    }
+  }
+
+  function clearPhoto() {
+    document.getElementById('photo').value = '';
+    document.getElementById('photoPreview').style.display = 'none';
+    document.getElementById('previewImg').src = '';
+  }
+
+  /* ── Double-submit prevention — preserved exactly ── */
+  document.getElementById('complaintForm').addEventListener('submit', function () {
+    const btn = document.getElementById('submitBtn');
+    btn.disabled    = true;
+    btn.textContent = 'Submitting…';
+  });
+</script>
+
+{% endblock %}

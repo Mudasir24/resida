@@ -1,0 +1,464 @@
+{% extends "apartment_base.html" %}
+
+{% block title %}{{ apartment.name }}{% endblock %}
+
+{% block content %}
+
+{% set is_logged_in = session.get('apartment_' + apartment.slug + '_logged_in') %}
+{% set user_role    = session.get('apartment_' + apartment.slug + '_role', 'resident') %}
+{% set user_name    = session.get('apartment_' + apartment.slug + '_full_name', session.get('apartment_' + apartment.slug + '_user', '')) %}
+
+<!-- ════════════════════════════════════
+     HERO — full bleed banner
+════════════════════════════════════ -->
+<section style="
+  position: relative;
+  border-radius: var(--radius-2xl);
+  overflow: hidden;
+  margin-bottom: var(--space-10);
+  min-height: 360px;
+  display: flex;
+  align-items: flex-end;
+  /* No animation class — hero is above the fold, must be instantly crisp */
+">
+
+  <!-- Photo: real <img> tag — never use background-image + filter as it degrades quality -->
+  {% if apartment.photo %}
+  <img
+    src="{{ apartment.photo }}"
+    alt="{{ apartment.name }}"
+    loading="eager"
+    decoding="sync"
+    style="
+      position:absolute; inset:0;
+      width:100%; height:100%;
+      object-fit:cover; object-position:center;
+      display:block;
+      filter:none !important;
+      opacity:1 !important;
+      animation:none !important;
+      transform:none;
+      will-change:auto;
+    "
+  >
+  {% else %}
+  <div style="position:absolute; inset:0; background:linear-gradient(135deg,#0c1018 0%,#1a2332 100%);"></div>
+  {% endif %}
+
+  <!-- Gradient overlay — controls darkness, no CSS filter needed -->
+  <div style="
+    position:absolute; inset:0;
+    background:linear-gradient(
+      to top,
+      rgba(8,12,20,0.95) 0%,
+      rgba(8,12,20,0.60) 45%,
+      rgba(8,12,20,0.30) 100%
+    );
+    pointer-events:none;
+  "></div>
+
+  <!-- Top gold accent line -->
+  <div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--brand-400),var(--brand-600),var(--brand-400));opacity:0.8;"></div>
+
+  <!-- Content -->
+  <div style="
+    position:relative; z-index:1;
+    padding: var(--space-10) var(--space-10) var(--space-8);
+    width:100%;
+    display:flex; align-items:flex-end;
+    justify-content:space-between;
+    gap:var(--space-8); flex-wrap:wrap;
+  ">
+    <div>
+      {% if is_logged_in %}
+      <div style="
+        display:inline-flex; align-items:center; gap:var(--space-2);
+        padding:5px var(--space-4);
+        background:rgba(212,168,83,0.15); border:1px solid rgba(212,168,83,0.3);
+        border-radius:var(--radius-full);
+        font-size:var(--text-xs); font-weight:700; text-transform:uppercase; letter-spacing:0.1em;
+        color:var(--brand-300); margin-bottom:var(--space-4);
+      ">
+        <span style="width:6px;height:6px;background:var(--brand-400);border-radius:50%;flex-shrink:0;"></span>
+        Welcome back, {{ user_name }}
+      </div>
+      {% else %}
+      <div style="
+        display:inline-flex; align-items:center; gap:var(--space-2);
+        padding:5px var(--space-4);
+        background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
+        border-radius:var(--radius-full);
+        font-size:var(--text-xs); font-weight:600; color:rgba(255,255,255,0.65);
+        margin-bottom:var(--space-4);
+      ">Resident Portal</div>
+      {% endif %}
+
+      <h1 style="
+        font-family:var(--font-display);
+        font-size:clamp(var(--text-4xl),6vw,4.5rem);
+        font-weight:600; color:#fff;
+        letter-spacing:-0.03em; line-height:1.05;
+        margin-bottom:var(--space-3);
+        text-shadow:0 2px 20px rgba(0,0,0,0.3);
+      ">{{ apartment.name }}</h1>
+
+      {% if apartment.address or apartment.city %}
+      <p style="font-size:var(--text-sm); color:rgba(255,255,255,0.5); display:flex; align-items:center; gap:var(--space-2);">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+        </svg>
+        {{ apartment.address }}{% if apartment.address and apartment.city %}, {% endif %}{{ apartment.city }}
+      </p>
+      {% endif %}
+    </div>
+
+    <!-- Stat chips -->
+    <div style="display:flex; gap:var(--space-3); flex-wrap:wrap;">
+      <div style="
+        background:rgba(255,255,255,0.10); border:1px solid rgba(255,255,255,0.18);
+        border-radius:var(--radius-lg);
+        padding:var(--space-4) var(--space-5); text-align:center; min-width:90px;
+      ">
+        <div style="font-family:var(--font-display);font-size:var(--text-3xl);font-weight:700;color:#fff;line-height:1;">{{ apartment.resident_count or '—' }}</div>
+        <div style="font-size:var(--text-xs);color:rgba(255,255,255,0.5);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;">Residents</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════
+     LOGGED IN: Quick actions
+════════════════════════════════════ -->
+{% if is_logged_in %}
+<section style="margin-bottom:var(--space-10);">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-5);gap:var(--space-4);">
+    <h2 style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.02em;">Quick Access</h2>
+    {% if user_role == 'admin' %}
+    <span style="padding:4px var(--space-3);background:rgba(239,68,68,0.10);border:1px solid rgba(239,68,68,0.2);border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;color:#ef4444;text-transform:uppercase;letter-spacing:0.08em;">Admin View</span>
+    {% endif %}
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:var(--space-4);">
+    {% if user_role == 'admin' %}
+      {% set actions = [
+        (url_for('admin_members',    slug=apartment.slug), '👥', 'Members',     'Manage residents'),
+        (url_for('admin_payments',   slug=apartment.slug), '💳', 'Payments',    'Dues & collections'),
+        (url_for('admin_complaints', slug=apartment.slug), '📋', 'Complaints',  'Review requests'),
+        (url_for('admin_works',      slug=apartment.slug), '🔧', 'Works',       'Maintenance jobs'),
+        (url_for('admin_expenses',   slug=apartment.slug), '💸', 'Expenses',    'Community costs'),
+      ] %}
+    {% else %}
+      {% set actions = [
+        (url_for('resident_payments',   slug=apartment.slug), '💳', 'My Payments', 'Dues & history'),
+        (url_for('resident_neighbors',  slug=apartment.slug), '👥', 'Neighbors',   'Community list'),
+        (url_for('resident_works',      slug=apartment.slug), '🔧', 'Works',       'Community works'),
+        (url_for('resident_complaints', slug=apartment.slug), '📋', 'Complaints',  'Submit & track'),
+        (url_for('resident_expenses',   slug=apartment.slug), '💸', 'Expenses',    'Shared costs'),
+      ] %}
+    {% endif %}
+
+    {% for href, icon, label, desc in actions %}
+    <a href="{{ href }}" class="reveal stagger-{{ loop.index }}" style="
+      display:block; background:var(--color-bg-surface);
+      border:1px solid var(--color-border-subtle);
+      border-radius:var(--radius-xl); padding:var(--space-6);
+      text-decoration:none; transition:all var(--ease-base);
+      position:relative; overflow:hidden;
+    "
+      onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='var(--shadow-lg)';this.style.borderColor='var(--color-accent-border)';this.querySelector('.acard-top').style.opacity='1'"
+      onmouseout="this.style.transform='';this.style.boxShadow='';this.style.borderColor='';this.querySelector('.acard-top').style.opacity='0'"
+    >
+      <div class="acard-top" style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--brand-400),var(--brand-500));opacity:0;transition:opacity var(--ease-base);"></div>
+      <div style="
+        width:42px;height:42px;
+        background:var(--color-bg-subtle); border:1px solid var(--color-border-default);
+        border-radius:var(--radius-md);
+        display:flex;align-items:center;justify-content:center;
+        font-size:1.25rem; margin-bottom:var(--space-4);
+      ">{{ icon }}</div>
+      <div style="font-size:var(--text-sm);font-weight:700;color:var(--color-text-primary);margin-bottom:3px;letter-spacing:-0.01em;">{{ label }}</div>
+      <div style="font-size:var(--text-xs);color:var(--color-text-tertiary);line-height:1.4;">{{ desc }}</div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- ════════════════════════════════════
+     NOT LOGGED IN: Sign in prompt
+════════════════════════════════════ -->
+{% else %}
+<section style="margin-bottom:var(--space-10);">
+  <div style="
+    background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);
+    border-radius:var(--radius-2xl); padding:var(--space-10);
+    display:flex;align-items:center;justify-content:space-between;
+    gap:var(--space-8); flex-wrap:wrap;
+  " class="reveal">
+    <div>
+      <h2 style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);letter-spacing:-0.02em;">Resident & Admin Portal</h2>
+      <p style="font-size:var(--text-base);color:var(--color-text-secondary);max-width:400px;line-height:1.6;">
+        Sign in to access payments, maintenance requests, community updates, and more.
+      </p>
+    </div>
+    <button class="btn btn-primary btn-lg" onclick="openModal()" style="flex-shrink:0;">
+      🔐 Sign In
+    </button>
+  </div>
+</section>
+{% endif %}
+
+
+<!-- ════════════════════════════════════
+     ANNOUNCEMENTS
+════════════════════════════════════ -->
+{% if apartment.public_announcements %}
+<section style="margin-bottom:var(--space-10);">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:var(--space-5);">
+    <h2 style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:600;letter-spacing:-0.02em;color:var(--color-text-primary);">Announcements</h2>
+    <span style="font-size:var(--text-sm);color:var(--color-text-tertiary);">{{ apartment.public_announcements|length }} notice{{ 's' if apartment.public_announcements|length != 1 }}</span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:var(--space-4);">
+    {% for ann in apartment.public_announcements %}
+    <div class="reveal stagger-{{ loop.index if loop.index <= 4 else 4 }}" style="
+      background:var(--color-bg-surface);
+      border:1px solid var(--color-border-subtle);
+      border-left:3px solid {% if ann.category == 'event' %}var(--color-accent){% elif ann.category == 'maintenance' %}var(--color-warning){% else %}var(--color-info){% endif %};
+      border-radius:var(--radius-xl); padding:var(--space-6);
+      transition:all var(--ease-base);
+    "
+      onmouseover="this.style.boxShadow='var(--shadow-md)';this.style.transform='translateX(3px)'"
+      onmouseout="this.style.boxShadow='';this.style.transform=''"
+    >
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-3);flex-wrap:wrap;gap:var(--space-3);">
+        <span class="badge {% if ann.category == 'event' %}badge-gold{% elif ann.category == 'maintenance' %}badge-warning{% else %}badge-neutral{% endif %}">
+          {% if ann.category == 'event' %}🎉 Event{% elif ann.category == 'maintenance' %}🔧 Maintenance{% else %}📢 Notice{% endif %}
+        </span>
+        <span style="font-size:var(--text-xs);color:var(--color-text-tertiary);font-weight:500;">{{ ann.date }}</span>
+      </div>
+      <h3 style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);letter-spacing:-0.01em;">{{ ann.title }}</h3>
+      <p style="font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.7;">{{ ann.content }}</p>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+
+<!-- ════════════════════════════════════
+     AMENITIES
+════════════════════════════════════ -->
+{% if apartment.amenities %}
+<section style="margin-bottom:var(--space-10);">
+  <h2 style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:600;letter-spacing:-0.02em;color:var(--color-text-primary);margin-bottom:var(--space-5);">Amenities</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:var(--space-4);">
+    {% for amenity in apartment.amenities %}
+    <div class="reveal stagger-{{ loop.index if loop.index <= 6 else 6 }}" style="
+      background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);
+      border-radius:var(--radius-xl);padding:var(--space-6);
+      transition:all var(--ease-base);
+    "
+      onmouseover="this.style.transform='translateY(-2px)';this.style.borderColor='var(--color-accent-border)';this.style.boxShadow='var(--shadow-md)'"
+      onmouseout="this.style.transform='';this.style.borderColor='';this.style.boxShadow=''"
+    >
+      <div style="font-size:1.75rem;margin-bottom:var(--space-3);line-height:1;">{{ amenity.icon }}</div>
+      <h3 style="font-family:var(--font-display);font-size:var(--text-lg);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">{{ amenity.name }}</h3>
+      <p style="font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.6;">{{ amenity.description }}</p>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+
+<!-- ════════════════════════════════════
+     CONTACT + LOCATION
+════════════════════════════════════ -->
+<section style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-5);margin-bottom:var(--space-4);" class="contact-loc-grid">
+
+  <!-- Contact -->
+  <div class="reveal" style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-xl);padding:var(--space-8);">
+    <h2 style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:600;letter-spacing:-0.02em;color:var(--color-text-primary);margin-bottom:var(--space-5);">Contact</h2>
+    <div style="display:flex;flex-direction:column;gap:var(--space-3);">
+      {% if apartment.admin_email %}
+      <a href="mailto:{{ apartment.admin_email }}" style="
+        display:flex;align-items:center;gap:var(--space-4);
+        padding:var(--space-4);border:1px solid var(--color-border-subtle);border-radius:var(--radius-lg);
+        text-decoration:none;transition:all var(--ease-fast);color:inherit;
+      "
+        onmouseover="this.style.borderColor='var(--color-accent-border)';this.style.background='var(--color-accent-subtle)'"
+        onmouseout="this.style.borderColor='';this.style.background=''"
+      >
+        <div style="width:38px;height:38px;background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">📧</div>
+        <div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px;">Email</div>
+          <div style="font-size:var(--text-sm);font-weight:500;color:var(--color-text-primary);">{{ apartment.admin_email }}</div>
+        </div>
+      </a>
+      {% endif %}
+      {% if apartment.phone %}
+      <a href="tel:{{ apartment.phone }}" style="
+        display:flex;align-items:center;gap:var(--space-4);
+        padding:var(--space-4);border:1px solid var(--color-border-subtle);border-radius:var(--radius-lg);
+        text-decoration:none;transition:all var(--ease-fast);color:inherit;
+      "
+        onmouseover="this.style.borderColor='var(--color-accent-border)';this.style.background='var(--color-accent-subtle)'"
+        onmouseout="this.style.borderColor='';this.style.background=''"
+      >
+        <div style="width:38px;height:38px;background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">📞</div>
+        <div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-tertiary);font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:2px;">Phone</div>
+          <div style="font-size:var(--text-sm);font-weight:500;color:var(--color-text-primary);">{{ apartment.phone }}</div>
+        </div>
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Location -->
+  <div class="reveal stagger-2" style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-xl);padding:var(--space-8);">
+    <h2 style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:600;letter-spacing:-0.02em;color:var(--color-text-primary);margin-bottom:var(--space-5);">Location</h2>
+    <div style="display:flex;align-items:flex-start;gap:var(--space-4);padding:var(--space-4);border:1px solid var(--color-border-subtle);border-radius:var(--radius-lg);background:var(--color-bg-subtle);">
+      <div style="width:38px;height:38px;background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">📍</div>
+      <div>
+        {% if apartment.address %}<p style="font-size:var(--text-sm);font-weight:500;color:var(--color-text-primary);line-height:1.6;margin-bottom:2px;">{{ apartment.address }}</p>{% endif %}
+        {% if apartment.city %}<p style="font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.6;">{{ apartment.city }}</p>{% endif %}
+        {% if not apartment.address and not apartment.city %}<p style="font-size:var(--text-sm);color:var(--color-text-tertiary);">No address on file</p>{% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  @media (max-width:640px) {
+    .contact-loc-grid { grid-template-columns:1fr !important; }
+  }
+</style>
+
+
+<!-- ════════════════════════════════════
+     LOGIN MODAL
+════════════════════════════════════ -->
+{% if not is_logged_in %}
+<div id="loginModal" style="
+  display:none; position:fixed; inset:0; z-index:1040;
+  background:rgba(0,0,0,0.65); backdrop-filter:blur(8px);
+  align-items:center; justify-content:center;
+  padding:var(--page-padding);
+" onclick="if(event.target===this)closeModal()">
+
+  <div style="
+    background:var(--color-bg-surface);
+    border:1px solid var(--color-border-subtle);
+    border-radius:var(--radius-2xl);
+    padding:var(--space-8);
+    width:100%; max-width:420px;
+    box-shadow:var(--shadow-2xl);
+    position:relative;
+    animation:fadeUp 0.3s cubic-bezier(0.25,0.46,0.45,0.94) both;
+  ">
+    <!-- Close btn -->
+    <button onclick="closeModal()" style="
+      position:absolute;top:var(--space-4);right:var(--space-4);
+      width:30px;height:30px;
+      background:var(--color-bg-subtle);border:1px solid var(--color-border-default);
+      border-radius:var(--radius-md);cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      font-size:var(--text-xs);color:var(--color-text-secondary);
+      transition:all var(--ease-fast);
+    "
+      onmouseover="this.style.background='var(--color-bg-muted)'"
+      onmouseout="this.style.background=''"
+    >✕</button>
+
+    <!-- Header -->
+    <div style="text-align:center;margin-bottom:var(--space-7);">
+      {% if apartment.photo %}
+        <img src="{{ apartment.photo }}" alt="{{ apartment.name }}" style="width:48px;height:48px;border-radius:var(--radius-lg);object-fit:cover;margin:0 auto var(--space-4);border:2px solid var(--color-border-subtle);opacity:1;animation:none;">
+      {% else %}
+        <div style="width:48px;height:48px;background:linear-gradient(135deg,var(--brand-400),var(--brand-600));border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-size:var(--text-xl);font-weight:700;color:#fff;margin:0 auto var(--space-4);">{{ apartment.name[0]|upper }}</div>
+      {% endif %}
+      <h2 style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.02em;margin-bottom:var(--space-1);">Sign in</h2>
+      <p style="font-size:var(--text-sm);color:var(--color-text-tertiary);">{{ apartment.name }} resident portal</p>
+    </div>
+
+    <!-- Tab switcher -->
+    <div style="
+      display:grid;grid-template-columns:1fr 1fr;
+      background:var(--color-bg-subtle);
+      border:1px solid var(--color-border-default);
+      border-radius:var(--radius-lg); padding:3px; margin-bottom:var(--space-6); gap:3px;
+    ">
+      <button id="tabResident" onclick="switchTab('resident')" style="
+        padding:9px;border:none;border-radius:var(--radius-md);
+        font-family:var(--font-body);font-size:var(--text-sm);font-weight:600;cursor:pointer;
+        transition:all var(--ease-fast);
+        background:var(--color-bg-surface);color:var(--color-text-primary);
+        box-shadow:var(--shadow-xs);
+      ">Resident</button>
+      <button id="tabAdmin" onclick="switchTab('admin')" style="
+        padding:9px;border:none;border-radius:var(--radius-md);
+        font-family:var(--font-body);font-size:var(--text-sm);font-weight:600;cursor:pointer;
+        transition:all var(--ease-fast);
+        background:transparent;color:var(--color-text-secondary);
+      ">Admin</button>
+    </div>
+
+    <!-- Resident form -->
+    <form id="residentForm" method="POST" action="{{ url_for('apartment_auth', slug=apartment.slug) }}">
+      <input type="hidden" name="auth_type" value="resident">
+      <div style="margin-bottom:var(--space-4);">
+        <input type="text" name="username" placeholder="Username or email" required autocomplete="username"
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''">
+      </div>
+      <div style="margin-bottom:var(--space-5);">
+        <input type="password" name="password" placeholder="Password" required autocomplete="current-password"
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" style="font-weight:700;">Sign in as Resident</button>
+    </form>
+
+    <!-- Admin form (hidden) -->
+    <form id="adminForm" method="POST" action="{{ url_for('apartment_auth', slug=apartment.slug) }}" style="display:none;">
+      <input type="hidden" name="auth_type" value="admin">
+      <div style="margin-bottom:var(--space-4);">
+        <input type="text" name="username" placeholder="Admin username" required autocomplete="username"
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''">
+      </div>
+      <div style="margin-bottom:var(--space-5);">
+        <input type="password" name="password" placeholder="Admin password" required autocomplete="current-password"
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''">
+      </div>
+      <button type="submit" class="btn btn-block" style="font-weight:700;background:var(--color-danger);color:#fff;border-radius:var(--radius-md);padding:11px var(--space-6);border:none;font-family:var(--font-body);font-size:var(--text-base);cursor:pointer;">Sign in as Admin</button>
+    </form>
+
+  </div>
+</div>
+
+<script>
+  function openModal()  { document.getElementById('loginModal').style.display = 'flex'; }
+  function closeModal() { document.getElementById('loginModal').style.display = 'none'; }
+
+  function switchTab(tab) {
+    const isR = tab === 'resident';
+    document.getElementById('residentForm').style.display = isR ? 'block' : 'none';
+    document.getElementById('adminForm').style.display    = isR ? 'none'  : 'block';
+    const on  = 'background:var(--color-bg-surface);color:var(--color-text-primary);box-shadow:0 1px 3px rgba(30,26,22,0.06);';
+    const off = 'background:transparent;color:var(--color-text-secondary);box-shadow:none;';
+    document.getElementById('tabResident').setAttribute('style', document.getElementById('tabResident').getAttribute('style').replace(/background[^;]+;|color[^;]+;|box-shadow[^;]+;/g,'') + (isR ? on : off));
+    document.getElementById('tabAdmin').setAttribute('style', document.getElementById('tabAdmin').getAttribute('style').replace(/background[^;]+;|color[^;]+;|box-shadow[^;]+;/g,'') + (isR ? off : on));
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+</script>
+{% endif %}
+
+{% endblock %}

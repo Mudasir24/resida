@@ -1,0 +1,143 @@
+/* ============================================
+   ANIMATIONS — Subtle, purposeful
+   ============================================ */
+
+/* ── Scroll Reveal ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-up { opacity: 0; transform: translateY(24px); transition: opacity 0.7s ease, transform 0.7s ease; }
+.reveal-up.visible { opacity: 1; transform: translateY(0); }
+
+.reveal-left { opacity: 0; transform: translateX(-24px); transition: opacity 0.7s ease, transform 0.7s ease; }
+.reveal-left.visible { opacity: 1; transform: translateX(0); }
+
+.reveal-right { opacity: 0; transform: translateX(24px); transition: opacity 0.7s ease, transform 0.7s ease; }
+.reveal-right.visible { opacity: 1; transform: translateX(0); }
+
+.reveal-scale { opacity: 0; transform: scale(0.94); transition: opacity 0.6s ease, transform 0.6s ease; }
+.reveal-scale.visible { opacity: 1; transform: scale(1); }
+
+/* Stagger delays */
+.stagger-1 { transition-delay: 0.05s; }
+.stagger-2 { transition-delay: 0.10s; }
+.stagger-3 { transition-delay: 0.15s; }
+.stagger-4 { transition-delay: 0.20s; }
+.stagger-5 { transition-delay: 0.25s; }
+.stagger-6 { transition-delay: 0.30s; }
+
+/* ── Fade In (page load) ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-up {
+  animation: fadeUp 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease both;
+}
+
+/* ── Loading spinner ── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border-default);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* ── Pulse ── */
+@keyframes pulse-ring {
+  0%   { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+/* ── Number count-up (JS-driven, CSS ready) ── */
+.count-up {
+  display: inline-block;
+  transition: opacity 0.3s ease;
+}
+
+/* ── Shimmer skeleton ── */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-subtle) 25%,
+    var(--color-bg-muted)  50%,
+    var(--color-bg-subtle) 75%
+  );
+  background-size: 400px 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: var(--radius-md);
+}
+
+/* ── Toast slide-in ── */
+@keyframes toastIn {
+  0%   { opacity: 0; transform: translateX(calc(100% + 24px)) scale(0.96); }
+  60%  { opacity: 1; transform: translateX(-6px) scale(1.01); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes toastOut {
+  0%   { opacity: 1; transform: translateX(0) scale(1); max-height: 120px; margin-bottom: var(--space-3); }
+  40%  { opacity: 0; transform: translateX(calc(100% + 24px)) scale(0.95); }
+  100% { opacity: 0; transform: translateX(calc(100% + 24px)) scale(0.95); max-height: 0; margin-bottom: 0; }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .toast.toast-leaving {
+    animation: none !important;
+    opacity: 0 !important;
+    transition: opacity 0.2s ease !important;
+  }
+  .toast-progress {
+    transition: none !important;
+  }
+  .reveal, .reveal-up, .reveal-left, .reveal-right, .reveal-scale {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .fade-up, .fade-in {
+    animation: none;
+    opacity: 1;
+  }
+
+  .float-card-1, .float-card-2 {
+    animation: none;
+  }
+}

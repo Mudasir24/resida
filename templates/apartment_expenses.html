@@ -1,0 +1,755 @@
+{% extends "apartment_base.html" %}
+
+{% block title %}My Expenses - {{ apartment.name }}{% endblock %}
+
+{% block content %}
+<style>
+    .expenses-container {
+        padding: 40px 20px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    .page-header {
+        margin-bottom: 40px;
+    }
+
+    .page-header h1 {
+        font-size: 32px;
+        font-weight: 700;
+        margin-bottom: 8px;
+        color: var(--text-primary);
+    }
+
+    .page-subtitle {
+        color: var(--text-secondary);
+        font-size: 16px;
+    }
+
+    /* Stats Row */
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 20px;
+        margin-bottom: 32px;
+    }
+
+    .stat-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 24px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--primary), var(--secondary));
+    }
+
+    .stat-card.pending::before {
+        background: linear-gradient(90deg, #f59e0b, #f97316);
+    }
+
+    .stat-card.paid::before {
+        background: linear-gradient(90deg, #10b981, #059669);
+    }
+
+    .stat-icon {
+        font-size: 32px;
+        margin-bottom: 12px;
+    }
+
+    .stat-label {
+        font-size: 13px;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .stat-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .stat-detail {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 8px;
+    }
+
+    /* Section Headers */
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+
+    .section-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .section-badge {
+        background: var(--accent-bg);
+        color: var(--primary);
+        padding: 8px 16px;
+        border-radius: 12px;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    /* Payment Cards */
+    .payments-grid {
+        display: grid;
+        gap: 16px;
+        margin-bottom: 48px;
+    }
+
+    .payment-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 24px;
+        display: grid;
+        grid-template-columns: auto 1fr auto auto;
+        gap: 20px;
+        align-items: center;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .payment-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 4px;
+        height: 100%;
+        background: var(--primary);
+    }
+
+    /* Category-specific colors */
+    .payment-card[data-category="maintenance"]::before {
+        background: linear-gradient(180deg, #3b82f6, #2563eb);
+    }
+
+    .payment-card[data-category="utilities"]::before {
+        background: linear-gradient(180deg, #f59e0b, #d97706);
+    }
+
+    .payment-card[data-category="repairs"]::before {
+        background: linear-gradient(180deg, #ef4444, #dc2626);
+    }
+
+    .payment-card[data-category="amenities"]::before {
+        background: linear-gradient(180deg, #8b5cf6, #7c3aed);
+    }
+
+    .payment-card[data-category="salaries"]::before {
+        background: linear-gradient(180deg, #10b981, #059669);
+    }
+
+
+    .payment-card[data-category="other"]::before {
+        background: linear-gradient(180deg, #6b7280, #4b5563);
+    }
+
+    .payment-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        border-color: var(--primary);
+    }
+
+    .payment-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        background: var(--accent-bg);
+    }
+
+    .payment-icon.pending {
+        background: rgba(245, 158, 11, 0.1);
+    }
+
+    .payment-icon.paid {
+        background: rgba(16, 185, 129, 0.1);
+    }
+
+    .payment-details {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .payment-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+
+    .payment-meta {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+    }
+
+    .payment-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        color: var(--text-secondary);
+    }
+
+    .category-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .category-badge.maintenance {
+        background: rgba(59, 130, 246, 0.15);
+        color: #3b82f6;
+    }
+
+    .category-badge.utilities {
+        background: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+    }
+
+    .category-badge.repairs {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+    }
+
+    .category-badge.salaries {
+        background: rgba(139, 92, 246, 0.15);
+        color: #8b5cf6;
+    }
+
+    .category-badge.amenities {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+    }
+
+    .category-badge.security, .category-badge.cleaning {
+        background: rgba(99, 102, 241, 0.15);
+        color: #6366f1;
+    }
+
+    .category-badge.other {
+        background: rgba(107, 114, 128, 0.15);
+        color: #6b7280;
+    }
+
+    /* Category Chips */
+    .category-chips {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 32px;
+    }
+
+    .category-chip {
+        padding: 10px 20px;
+        background: var(--bg-secondary);
+        border: 2px solid var(--border-color);
+        border-radius: 12px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        color: var(--text-primary);
+    }
+
+    .category-chip:hover {
+        border-color: var(--primary);
+        background: var(--accent-bg);
+    }
+
+    .category-chip.active {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+
+    .payment-amount {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+        white-space: nowrap;
+    }
+
+    .payment-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .status-badge {
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-badge.pending {
+        background: rgba(245, 158, 11, 0.15);
+        color: #f59e0b;
+    }
+
+    .status-badge.paid {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+    }
+
+    .btn-receipt {
+        padding: 8px 16px;
+        background: var(--success);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .btn-receipt:hover {
+        background: #059669;
+        transform: translateY(-2px);
+    }
+
+    .btn-receipt:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Receipt Modal */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        animation: fadeIn 0.3s ease;
+    }
+
+    .modal.active {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-content {
+        background: var(--bg-secondary);
+        border-radius: 16px;
+        padding: 32px;
+        max-width: 800px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+        animation: slideUp 0.3s ease;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+
+    .modal-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        font-size: 28px;
+        cursor: pointer;
+        color: var(--text-secondary);
+        transition: color 0.3s ease;
+    }
+
+    .close-btn:hover {
+        color: var(--text-primary);
+    }
+
+    .receipt-preview {
+        max-width: 100%;
+        max-height: 70vh;
+        border-radius: 12px;
+        margin: 20px auto 0;
+        display: block;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .download-receipt-btn {
+        display: block;
+        margin: 20px auto 0;
+        padding: 12px 24px;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        text-align: center;
+    }
+
+    .download-receipt-btn:hover {
+        background: var(--secondary);
+        transform: translateY(-2px);
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes slideUp {
+        from {
+            transform: translateY(50px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 80px 20px;
+        background: var(--bg-secondary);
+        border: 2px dashed var(--border-color);
+        border-radius: 16px;
+    }
+
+    .empty-icon {
+        font-size: 64px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    .empty-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+    }
+
+    .empty-text {
+        color: var(--text-secondary);
+        font-size: 14px;
+    }
+
+    /* Expense Description Collapse */
+    .payment-description {
+        grid-column: 2 / -1;
+        margin-top: 8px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border-color);
+        color: var(--text-secondary);
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    @media (max-width: 968px) {
+        .payment-card {
+            grid-template-columns: auto 1fr;
+            gap: 16px;
+        }
+
+        .payment-amount {
+            grid-column: 2;
+            text-align: right;
+        }
+
+        .payment-actions {
+            grid-column: 1 / -1;
+            justify-content: space-between;
+        }
+
+        .stats-row {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 640px) {
+        .stats-row {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<script>
+function filterByMonth(month) {
+    window.location.href = window.location.pathname + '?month=' + month;
+}
+
+function filterByCategory(category) {
+    const allCards = document.querySelectorAll('.payment-card');
+    const allChips = document.querySelectorAll('.category-chip');
+    
+    // Update active chip state
+    allChips.forEach(chip => {
+        if (chip.dataset.category === category) {
+            chip.classList.add('active');
+        } else {
+            chip.classList.remove('active');
+        }
+    });
+    
+    // Filter expense cards
+    let visibleCount = 0;
+    allCards.forEach(card => {
+        const cardCategory = card.dataset.category;
+        if (category === 'all' || cardCategory.toLowerCase() === category.toLowerCase()) {
+            card.style.display = 'grid';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+    
+    // Update stats based on visible expenses
+    updateStatsForVisibleExpenses();
+}
+
+function updateStatsForVisibleExpenses() {
+    const allCards = document.querySelectorAll('.payment-card');
+    let total = 0;
+    let visibleCount = 0;
+    const categoryCount = {};
+    
+    allCards.forEach(card => {
+        if (card.style.display !== 'none') {
+            const amount = parseFloat(card.dataset.amount);
+            const category = card.dataset.category;
+            total += amount;
+            visibleCount++;
+            categoryCount[category] = (categoryCount[category] || 0) + 1;
+        }
+    });
+    
+    // Update total stat
+    const totalStat = document.querySelector('.stat-card .stat-value');
+    if (totalStat) {
+        totalStat.textContent = '₹' + total.toLocaleString('en-IN', {maximumFractionDigits: 0});
+    }
+    
+    // Update count stat
+    const countStats = document.querySelectorAll('.stat-card .stat-value');
+    if (countStats.length > 2) {
+        countStats[2].textContent = visibleCount;
+    }
+    
+    // Update average
+    if (countStats.length > 1) {
+        const avg = visibleCount > 0 ? total / visibleCount : 0;
+        countStats[1].textContent = '₹' + avg.toLocaleString('en-IN', {maximumFractionDigits: 0});
+    }
+}
+
+function viewReceipt(receiptUrl) {
+    const modal = document.getElementById('receiptModal');
+    const img = document.getElementById('receiptImage');
+    const downloadLink = document.getElementById('downloadReceiptLink');
+    img.src = receiptUrl;
+    downloadLink.href = receiptUrl;
+    modal.classList.add('active');
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    modal.classList.remove('active');
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.classList.remove('active');
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure all cards are visible by default
+    const allCards = document.querySelectorAll('.payment-card');
+    allCards.forEach(card => {
+        card.style.display = 'grid';
+    });
+});
+</script>
+
+<div class="expenses-container">
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1>💸 Apartment Expenses</h1>
+        <p class="page-subtitle">View all apartment expenses and spending</p>
+    </div>
+
+    <!-- Month Filter -->
+    <div class="filters-row" style="margin-bottom: 24px; display: flex; gap: 12px; align-items: center;">
+        <label style="font-weight: 600; color: var(--text-primary);">📅 Filter by Month:</label>
+        <select onchange="filterByMonth(this.value)" style="padding: 10px 16px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-secondary); color: var(--text-primary); font-size: 14px; cursor: pointer;">
+            {% for month in available_months %}
+            <option value="{{ month.value }}" {% if selected_month == month.value %}selected{% endif %}>{{ month.label }}</option>
+            {% endfor %}
+            <option value="last_3_months" {% if selected_month == 'last_3_months' %}selected{% endif %}>Last 3 Months</option>
+        </select>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-icon">💰</div>
+            <div class="stat-label">Total Expenses</div>
+            <div class="stat-value">₹{{ "{:,.0f}".format(total_amount) }}</div>
+            <div class="stat-detail">{{ expense_count }} expense{{ 's' if expense_count != 1 else '' }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📊</div>
+            <div class="stat-label">Average per Expense</div>
+            <div class="stat-value">₹{{ "{:,.0f}".format(total_amount / expense_count if expense_count > 0 else 0) }}</div>
+            <div class="stat-detail">Across all categories</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">📋</div>
+            <div class="stat-label">Total Count</div>
+            <div class="stat-value">{{ expense_count }}</div>
+            <div class="stat-detail">Expenses recorded</div>
+        </div>
+    </div>
+
+    <!-- Category Chips -->
+    {% if expenses %}
+    <div class="category-chips">
+        <button class="category-chip active" data-category="all" onclick="filterByCategory('all')">All</button>
+        <button class="category-chip" data-category="maintenance" onclick="filterByCategory('maintenance')">Maintenance</button>
+        <button class="category-chip" data-category="utilities" onclick="filterByCategory('utilities')">Utilities</button>
+        <button class="category-chip" data-category="repairs" onclick="filterByCategory('repairs')">Repairs</button>
+        <button class="category-chip" data-category="amenities" onclick="filterByCategory('amenities')">Amenities</button>
+        <button class="category-chip" data-category="salaries" onclick="filterByCategory('salaries')">Salaries</button>
+        <button class="category-chip" data-category="misc" onclick="filterByCategory('misc')">Miscellaneous</button>
+    </div>
+    {% endif %}
+
+    <!-- Expenses List -->
+    {% if expenses %}
+    <div class="section-header">
+        <h2 class="section-title">Expenses</h2>
+        <span class="section-badge">{{ expenses|length }} expense{{ 's' if expenses|length != 1 else '' }}</span>
+    </div>
+
+    <div class="payments-grid">
+        {% for expense in expenses %}
+        <div class="payment-card" 
+             data-category="{{ expense.category.lower() }}" 
+             data-amount="{{ expense.amount }}">
+            <div class="payment-icon">
+                {% if expense.category.lower() == 'maintenance' %}🔧
+                {% elif expense.category.lower() == 'utilities' %}💡
+                {% elif expense.category.lower() == 'repairs' %}🔨
+                {% elif expense.category.lower() == 'amenities' %}🏊
+                {% elif expense.category.lower() == 'salaries' %}💼
+                {% else %}📋
+                {% endif %}
+            </div>
+            
+            <div class="payment-details">
+                <div class="payment-title">{{ expense.title }}</div>
+                <div class="payment-meta">
+                    <span class="payment-meta-item">
+                        <span class="category-badge {{ expense.category.lower() }}">{{ expense.category }}</span>
+                    </span>
+                    <span class="payment-meta-item">
+                        📅 {{ expense.date|strftime('%b %d, %Y') }}
+                    </span>
+                </div>
+            </div>
+            
+            <div class="payment-amount">₹{{ "{:,.2f}".format(expense.amount) }}</div>
+            
+            <div class="payment-actions">
+                {% if expense.receipt %}
+                <button onclick="viewReceipt('{{ expense.receipt }}')" class="btn-receipt">
+                    📄 View Receipt
+                </button>
+                {% endif %}
+            </div>
+
+            {% if expense.description %}
+            <div class="payment-description">
+                <strong>Description:</strong> {{ expense.description }}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Empty State -->
+    {% if not expenses %}
+    <div class="empty-state">
+        <div class="empty-icon">📊</div>
+        <div class="empty-title">No Expenses Found</div>
+        <p class="empty-text">No expenses have been recorded for this period yet.</p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Receipt Viewer Modal -->
+<div id="receiptModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">📄 Receipt</h2>
+            <button class="close-btn" onclick="closeModal('receiptModal')">&times;</button>
+        </div>
+        <img id="receiptImage" src="" alt="Receipt" class="receipt-preview">
+        <a id="downloadReceiptLink" href="" download="receipt" class="download-receipt-btn">
+            ⬇️ Download Receipt
+        </a>
+    </div>
+</div>
+
+{% endblock %}

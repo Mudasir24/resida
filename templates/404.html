@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}404 — Page Not Found | Resida{% endblock %}
+
+{% block content %}
+<div class="error-page">
+  <div class="error-inner">
+
+    <!-- Decorative illustration -->
+    <div class="error-illustration">
+      <svg viewBox="0 0 120 80" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <!-- Building outline -->
+        <rect x="20" y="20" width="80" height="55" rx="3" fill="none" stroke="currentColor" stroke-width="2.5" opacity="0.18"/>
+        <!-- Windows -->
+        <rect x="30" y="30" width="14" height="14" rx="2" fill="currentColor" opacity="0.12"/>
+        <rect x="53" y="30" width="14" height="14" rx="2" fill="currentColor" opacity="0.12"/>
+        <rect x="76" y="30" width="14" height="14" rx="2" fill="currentColor" opacity="0.12"/>
+        <rect x="30" y="52" width="14" height="14" rx="2" fill="currentColor" opacity="0.12"/>
+        <!-- Crossed-out window -->
+        <rect x="53" y="52" width="14" height="14" rx="2" fill="currentColor" opacity="0.06"/>
+        <line x1="53" y1="52" x2="67" y2="66" stroke="currentColor" stroke-width="1.5" opacity="0.30"/>
+        <line x1="67" y1="52" x2="53" y2="66" stroke="currentColor" stroke-width="1.5" opacity="0.30"/>
+        <rect x="76" y="52" width="14" height="14" rx="2" fill="currentColor" opacity="0.12"/>
+        <!-- Door -->
+        <rect x="49" y="59" width="22" height="16" rx="2" fill="currentColor" opacity="0.14"/>
+        <!-- Roof ridge -->
+        <polyline points="14,22 60,4 106,22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" opacity="0.18"/>
+      </svg>
+    </div>
+
+    <p class="error-code">404</p>
+    <h1 class="error-title">Page Not Found</h1>
+    <p class="error-desc">
+      {{ message if message else "The page you're looking for has moved, been deleted, or never existed." }}
+    </p>
+
+    <div class="error-actions">
+      <a href="{{ url_for('index') }}" class="btn btn-primary">Go Home</a>
+      <a href="{{ url_for('apartments_directory') }}" class="btn btn-secondary">Browse Apartments</a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .error-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+  .error-illustration {
+    width: clamp(100px, 20vw, 160px);
+    color: var(--color-accent);
+    margin-bottom: var(--space-6);
+    opacity: 0.85;
+  }
+  .error-illustration svg { width: 100%; height: auto; }
+  .error-code { margin-bottom: var(--space-2) !important; }
+  .error-actions {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: var(--space-2);
+  }
+</style>
+{% endblock %}

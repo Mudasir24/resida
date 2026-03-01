@@ -1,0 +1,801 @@
+{% extends "apartment_base.html" %}
+
+{% block title %}Works & Projects — {{ apartment.name }}{% endblock %}
+
+{% block content %}
+
+{# ── Computed vars ── #}
+{% set total_w     = works | length %}
+{% set planned_w   = works | selectattr('status','equalto','planned')   | list | length %}
+{% set ongoing_w   = works | selectattr('status','equalto','ongoing')   | list | length %}
+{% set completed_w = works | selectattr('status','equalto','completed') | list | length %}
+
+
+<!-- ══════════════════════════════════
+     PAGE HEADER
+══════════════════════════════════ -->
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-6);flex-wrap:wrap;margin-bottom:var(--space-8);">
+  <div>
+    <p style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Admin · {{ apartment.name }}</p>
+    <h1 style="font-family:var(--font-display);font-size:var(--text-4xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.03em;line-height:1.1;margin-bottom:var(--space-2);">Works & Projects</h1>
+    <p style="font-size:var(--text-base);color:var(--color-text-secondary);">Track improvement projects, checkpoints, and costs.</p>
+  </div>
+  <button onclick="openModal('createWorkModal')" class="btn btn-primary">+ New Work</button>
+</div>
+
+
+<!-- ══════════════════════════════════
+     STAT STRIP  (4 cards)
+══════════════════════════════════ -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-3);margin-bottom:var(--space-8);">
+
+  {# Total #}
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-xl);padding:var(--space-5) var(--space-6);">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Total</div>
+    <div style="font-family:var(--font-display);font-size:var(--text-3xl);font-weight:700;color:var(--color-text-primary);letter-spacing:-0.02em;line-height:1;">{{ stats.total }}</div>
+  </div>
+
+  {# Planned #}
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-xl);padding:var(--space-5) var(--space-6);">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Planned</div>
+    <div style="font-family:var(--font-display);font-size:var(--text-3xl);font-weight:700;color:#f59e0b;letter-spacing:-0.02em;line-height:1;">{{ stats.planned }}</div>
+  </div>
+
+  {# Ongoing #}
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-xl);padding:var(--space-5) var(--space-6);">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Ongoing</div>
+    <div style="font-family:var(--font-display);font-size:var(--text-3xl);font-weight:700;color:#3b82f6;letter-spacing:-0.02em;line-height:1;">{{ stats.ongoing }}</div>
+  </div>
+
+  {# Completed #}
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-xl);padding:var(--space-5) var(--space-6);">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Completed</div>
+    <div style="font-family:var(--font-display);font-size:var(--text-3xl);font-weight:700;color:#16a34a;letter-spacing:-0.02em;line-height:1;">{{ stats.completed }}</div>
+    {% if stats.total > 0 %}
+    <div style="margin-top:var(--space-2);">
+      <div style="height:4px;background:var(--color-bg-subtle);border-radius:var(--radius-full);overflow:hidden;">
+        <div style="height:100%;width:{{ ((stats.completed/stats.total)*100)|round|int }}%;background:#16a34a;border-radius:var(--radius-full);"></div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+
+<!-- ══════════════════════════════════
+     FILTER TABS  (with counts)
+══════════════════════════════════ -->
+<div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap;margin-bottom:var(--space-7);">
+  <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;" id="filterBar">
+    {% for fid, flabel, fcount in [
+      ('all',       'All',       stats.total),
+      ('planned',   'Planned',   stats.planned),
+      ('ongoing',   'Ongoing',   stats.ongoing),
+      ('completed', 'Completed', stats.completed),
+    ] %}
+    <button
+      data-filter="{{ fid }}"
+      onclick="filterWorks('{{ fid }}')"
+      style="
+        padding:7px var(--space-4);
+        background:{% if loop.first %}var(--color-accent){% else %}var(--color-bg-surface){% endif %};
+        color:{% if loop.first %}#fff{% else %}var(--color-text-secondary){% endif %};
+        border:1px solid {% if loop.first %}var(--color-accent){% else %}var(--color-border-default){% endif %};
+        border-radius:var(--radius-full);
+        font-family:var(--font-body);font-size:var(--text-xs);font-weight:700;
+        cursor:pointer;white-space:nowrap;
+        transition:all var(--ease-fast);
+        display:inline-flex;align-items:center;gap:var(--space-2);
+      "
+    >
+      {{ flabel }}
+      <span style="padding:1px 7px;border-radius:var(--radius-full);font-size:0.65rem;background:{% if loop.first %}rgba(255,255,255,0.25){% else %}var(--color-bg-subtle){% endif %};">{{ fcount }}</span>
+    </button>
+    {% endfor %}
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     WORKS GRID  /  EMPTY STATE
+══════════════════════════════════ -->
+{% if works %}
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:var(--space-5);" id="worksGrid">
+  {% for work in works %}
+
+  {# ── Status colour palette ── #}
+  {% if work.status == 'planned' %}
+    {% set s_color  = '#f59e0b' %}
+    {% set s_bg     = 'rgba(245,158,11,0.08)' %}
+    {% set s_border = 'rgba(245,158,11,0.25)' %}
+    {% set s_bar    = '#f59e0b' %}
+    {% set s_label  = 'Planned' %}
+  {% elif work.status == 'ongoing' %}
+    {% set s_color  = '#3b82f6' %}
+    {% set s_bg     = 'rgba(59,130,246,0.08)' %}
+    {% set s_border = 'rgba(59,130,246,0.25)' %}
+    {% set s_bar    = '#3b82f6' %}
+    {% set s_label  = 'Ongoing' %}
+  {% else %}
+    {% set s_color  = '#16a34a' %}
+    {% set s_bg     = 'rgba(34,197,94,0.08)' %}
+    {% set s_border = 'rgba(34,197,94,0.25)' %}
+    {% set s_bar    = '#16a34a' %}
+    {% set s_label  = 'Completed' %}
+  {% endif %}
+
+  {% set cp_done  = work.checkpoints | selectattr('is_done') | list | length %}
+  {% set cp_total = work.checkpoints | length %}
+
+  <div
+    class="work-card"
+    data-status="{{ work.status }}"
+    data-id="{{ work.id }}"
+    style="
+      background:var(--color-bg-surface);
+      border:1px solid var(--color-border-subtle);
+      border-left:3px solid {{ s_bar }};
+      border-radius:var(--radius-xl);
+      overflow:hidden;
+      transition:box-shadow var(--ease-fast);
+    "
+    onmouseover="this.style.boxShadow='var(--shadow-md)'"
+    onmouseout="this.style.boxShadow=''"
+  >
+
+    <!-- ── CARD BODY ── -->
+    <div style="padding:var(--space-6) var(--space-7);">
+
+      <!-- Header: title + badge -->
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-4);margin-bottom:var(--space-4);">
+        <h3 style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.01em;line-height:1.3;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0;">{{ work.title }}</h3>
+        <span style="
+          display:inline-flex;align-items:center;gap:6px;flex-shrink:0;
+          padding:5px var(--space-3);
+          background:{{ s_bg }};border:1px solid {{ s_border }};
+          border-radius:var(--radius-full);
+          font-size:var(--text-xs);font-weight:700;color:{{ s_color }};white-space:nowrap;
+        ">
+          <span style="width:6px;height:6px;background:{{ s_bar }};border-radius:50%;flex-shrink:0;{% if work.status == 'ongoing' %}animation:pulse 2s infinite;{% endif %}"></span>
+          {{ s_label }}
+        </span>
+      </div>
+
+      <!-- Description -->
+      {% if work.description %}
+      <p style="font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.65;margin-bottom:var(--space-5);">{{ work.description }}</p>
+      {% endif %}
+
+      <!-- Progress bar -->
+      <div style="margin-bottom:var(--space-5);">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:var(--space-2);">
+          <span style="font-size:var(--text-xs);font-weight:600;color:var(--color-text-secondary);">Checkpoint Progress</span>
+          <span class="work-pct" style="font-family:var(--font-display);font-size:var(--text-sm);font-weight:700;color:{{ s_color }};">{{ work.progress }}%</span>
+        </div>
+        <div style="height:6px;background:var(--color-bg-subtle);border-radius:var(--radius-full);overflow:hidden;">
+          <div class="work-fill" style="height:100%;width:{{ work.progress }}%;background:{{ s_bar }};border-radius:var(--radius-full);transition:width 0.8s ease;"></div>
+        </div>
+      </div>
+
+      <!-- Meta tiles: Done / Estimated / Actual -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin-bottom:var(--space-5);">
+
+        <div style="background:var(--color-bg-subtle);border:1px solid var(--color-border-subtle);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-2);text-align:center;">
+          <div class="cp-done-val" style="font-family:var(--font-display);font-size:var(--text-base);font-weight:700;color:var(--color-text-primary);line-height:1;margin-bottom:2px;">{{ cp_done }}/{{ cp_total }}</div>
+          <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-tertiary);">Done</div>
+        </div>
+
+        <div style="background:var(--color-bg-subtle);border:1px solid var(--color-border-subtle);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-2);text-align:center;">
+          <div style="font-family:var(--font-display);font-size:var(--text-base);font-weight:700;color:var(--color-text-primary);line-height:1;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{% if work.estimated_cost %}₹{{ "{:,.0f}".format(work.estimated_cost) }}{% else %}—{% endif %}</div>
+          <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-tertiary);">Est.</div>
+        </div>
+
+        <div style="background:var(--color-bg-subtle);border:1px solid var(--color-border-subtle);border-radius:var(--radius-lg);padding:var(--space-3) var(--space-2);text-align:center;">
+          <div style="font-family:var(--font-display);font-size:var(--text-base);font-weight:700;color:{% if work.actual_cost %}#16a34a{% else %}var(--color-text-tertiary){% endif %};line-height:1;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{% if work.actual_cost %}₹{{ "{:,.0f}".format(work.actual_cost) }}{% else %}—{% endif %}</div>
+          <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-tertiary);">Actual</div>
+        </div>
+
+      </div>
+
+      <!-- Dates as pills -->
+      {% if work.start_date or work.end_date %}
+      <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-5);">
+        {% if work.start_date %}
+        <span style="display:inline-flex;align-items:center;gap:5px;padding:4px var(--space-3);background:var(--color-bg-subtle);border:1px solid var(--color-border-subtle);border-radius:var(--radius-full);font-size:var(--text-xs);color:var(--color-text-secondary);">
+          <span>📅</span> <span style="font-weight:600;color:var(--color-text-primary);">{{ work.start_date }}</span>
+        </span>
+        {% endif %}
+        {% if work.end_date %}
+        <span style="display:inline-flex;align-items:center;gap:5px;padding:4px var(--space-3);background:var(--color-bg-subtle);border:1px solid var(--color-border-subtle);border-radius:var(--radius-full);font-size:var(--text-xs);color:var(--color-text-secondary);">
+          <span>🏁</span> <span style="font-weight:600;color:var(--color-text-primary);">{{ work.end_date }}</span>
+        </span>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <!-- Manage toggle button -->
+      <button
+        id="manageBtnLabel-{{ work.id }}"
+        onclick="toggleManage({{ work.id }})"
+        style="
+          width:100%;padding:10px;
+          background:var(--color-bg-subtle);
+          border:1px solid var(--color-border-default);
+          border-radius:var(--radius-md);
+          font-family:var(--font-body);font-size:var(--text-sm);font-weight:700;
+          color:var(--color-text-secondary);cursor:pointer;
+          transition:all var(--ease-fast);
+          display:flex;align-items:center;justify-content:center;gap:var(--space-2);
+        "
+        onmouseover="this.style.borderColor='var(--color-accent-border)';this.style.color='var(--color-accent)'"
+        onmouseout="if(!this.dataset.open){this.style.borderColor='';this.style.color='';}"
+      >
+        <span id="manageBtnIcon-{{ work.id }}">⚙</span>
+        <span id="manageBtnText-{{ work.id }}">Manage Work</span>
+      </button>
+
+    </div>
+    <!-- end card body -->
+
+    <!-- ══ MANAGE PANEL ══ -->
+    <div
+      id="manage-{{ work.id }}"
+      style="
+        display:none;
+        border-top:1px solid var(--color-border-subtle);
+        background:var(--color-bg-subtle);
+        padding:var(--space-6) var(--space-7) var(--space-7);
+      "
+    >
+
+      <!-- ─ Status Update ─ -->
+      <div style="margin-bottom:var(--space-7);">
+        <div style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--color-text-tertiary);margin-bottom:var(--space-4);">Update Status</div>
+        <form method="POST" action="{{ url_for('update_work_status', slug=apartment.slug, work_id=work.id) }}">
+          <div style="display:flex;gap:var(--space-3);align-items:flex-end;flex-wrap:wrap;">
+
+            <div style="flex:1;min-width:140px;">
+              <label style="display:block;font-size:var(--text-xs);font-weight:600;color:var(--color-text-secondary);margin-bottom:var(--space-2);">Status</label>
+              <select
+                name="status"
+                onchange="toggleActualCost(this, {{ work.id }})"
+                style="
+                  width:100%;padding:9px var(--space-4);
+                  background:var(--color-bg-surface);
+                  border:1.5px solid var(--color-border-default);
+                  border-radius:var(--radius-md);
+                  font-family:var(--font-body);font-size:var(--text-sm);
+                  color:var(--color-text-primary);
+                  transition:border-color var(--ease-fast);
+                "
+                onfocus="this.style.borderColor='var(--color-accent)'" onblur="this.style.borderColor=''"
+              >
+                <option value="planned"   {% if work.status=='planned'   %}selected{% endif %}>Planned</option>
+                <option value="ongoing"   {% if work.status=='ongoing'   %}selected{% endif %}>Ongoing</option>
+                <option value="completed" {% if work.status=='completed' %}selected{% endif %}>Completed</option>
+              </select>
+            </div>
+
+            <div id="cost-field-{{ work.id }}" style="flex:1;min-width:140px;{% if work.status != 'completed' %}display:none;{% endif %}">
+              <label style="display:block;font-size:var(--text-xs);font-weight:600;color:var(--color-text-secondary);margin-bottom:var(--space-2);">Actual Cost (₹)</label>
+              <input
+                type="number" name="actual_cost" step="0.01"
+                value="{{ work.actual_cost or '' }}" placeholder="e.g. 45000"
+                style="
+                  width:100%;padding:9px var(--space-4);
+                  background:var(--color-bg-surface);
+                  border:1.5px solid var(--color-border-default);
+                  border-radius:var(--radius-md);
+                  font-family:var(--font-body);font-size:var(--text-sm);
+                  color:var(--color-text-primary);
+                  transition:border-color var(--ease-fast);
+                "
+                onfocus="this.style.borderColor='var(--color-accent)'" onblur="this.style.borderColor=''"
+              >
+            </div>
+
+            <button
+              type="submit"
+              class="btn btn-primary"
+              style="padding:9px var(--space-5);font-weight:700;white-space:nowrap;"
+            >Save</button>
+
+          </div>
+        </form>
+      </div>
+
+      <!-- ─ Checkpoints ─ -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4);">
+          <div style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--color-text-tertiary);">Checkpoints</div>
+          <span id="cpCountLabel-{{ work.id }}" style="font-size:var(--text-xs);font-weight:600;color:var(--color-text-tertiary);">{{ cp_done }}/{{ cp_total }} done</span>
+        </div>
+
+        <!-- Checkpoint list -->
+        <div id="cpList-{{ work.id }}" style="display:flex;flex-direction:column;gap:var(--space-2);margin-bottom:var(--space-4);">
+          {% if work.checkpoints %}
+            {% for cp in work.checkpoints %}
+            <div
+              class="cp-item {{ 'cp-done' if cp.is_done }}"
+              data-cp="{{ cp.id }}"
+              style="
+                display:flex;align-items:center;gap:var(--space-3);
+                padding:var(--space-3) var(--space-4);
+                background:{% if cp.is_done %}rgba(34,197,94,0.06){% else %}var(--color-bg-surface){% endif %};
+                border:1px solid {% if cp.is_done %}rgba(34,197,94,0.20){% else %}var(--color-border-subtle){% endif %};
+                border-radius:var(--radius-md);
+                transition:all var(--ease-fast);
+              "
+            >
+              <form
+                class="toggle-cp-form"
+                method="POST"
+                action="{{ url_for('toggle_checkpoint', slug=apartment.slug, work_id=work.id, cp_id=cp.id) }}"
+                enctype="multipart/form-data"
+                style="display:contents;"
+              >
+                <!-- Custom checkbox tick -->
+                <button
+                  type="submit"
+                  class="cp-tick {% if cp.is_done %}cp-ticked{% endif %}"
+                  title="{{ 'Unmark done' if cp.is_done else 'Mark done' }}"
+                  style="
+                    width:20px;height:20px;flex-shrink:0;
+                    border-radius:4px;
+                    border:2px solid {% if cp.is_done %}#16a34a{% else %}var(--color-border-default){% endif %};
+                    background:{% if cp.is_done %}#16a34a{% else %}transparent{% endif %};
+                    cursor:pointer;
+                    display:flex;align-items:center;justify-content:center;
+                    padding:0;
+                    transition:all var(--ease-fast);
+                  "
+                  onmouseover="if(!this.classList.contains('cp-ticked')){this.style.borderColor='#16a34a';}"
+                  onmouseout="if(!this.classList.contains('cp-ticked')){this.style.borderColor='';}"
+                >
+                  {% if cp.is_done %}<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>{% endif %}
+                </button>
+
+                <span
+                  class="cp-title-text"
+                  style="flex:1;font-size:var(--text-sm);color:{% if cp.is_done %}var(--color-text-tertiary){% else %}var(--color-text-primary){% endif %};{% if cp.is_done %}text-decoration:line-through;{% endif %}"
+                >{{ cp.title }}</span>
+
+                {% if cp.done_at %}
+                <span class="cp-done-at" style="font-size:var(--text-xs);color:var(--color-text-tertiary);white-space:nowrap;flex-shrink:0;">{{ cp.done_at }}</span>
+                {% endif %}
+
+                {# Photo upload — only when not done #}
+                {% if not cp.is_done %}
+                <label
+                  style="flex-shrink:0;cursor:pointer;font-size:1rem;opacity:0.5;transition:opacity var(--ease-fast);"
+                  title="Attach a photo when marking done"
+                  onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'"
+                >
+                  📷
+                  <input type="file" name="photo" accept="image/*" style="display:none;" onchange="this.closest('form').submit()">
+                </label>
+                {% endif %}
+
+              </form>
+
+              {# View photo if attached #}
+              {% if cp.photo_url %}
+              <a
+                href="{{ cp.photo_url }}" target="_blank"
+                style="flex-shrink:0;font-size:1rem;opacity:0.7;text-decoration:none;transition:opacity var(--ease-fast);"
+                title="View proof photo"
+                onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'"
+              >🖼️</a>
+              {% endif %}
+
+            </div>
+            {% endfor %}
+          {% else %}
+          <p id="noCpMsg-{{ work.id }}" style="font-size:var(--text-sm);color:var(--color-text-tertiary);font-style:italic;margin:0;">No checkpoints yet — add one below.</p>
+          {% endif %}
+        </div>
+
+        <!-- Add checkpoint inline form -->
+        <form
+          class="add-cp-form"
+          method="POST"
+          action="{{ url_for('add_checkpoint', slug=apartment.slug, work_id=work.id) }}"
+        >
+          <div style="display:flex;gap:var(--space-2);">
+            <input
+              type="text" name="title"
+              placeholder="Add a checkpoint…"
+              required
+              style="
+                flex:1;padding:9px var(--space-4);
+                background:var(--color-bg-surface);
+                border:1.5px dashed var(--color-border-default);
+                border-radius:var(--radius-md);
+                font-family:var(--font-body);font-size:var(--text-sm);
+                color:var(--color-text-primary);
+                transition:border-color var(--ease-fast),border-style var(--ease-fast);
+              "
+              onfocus="this.style.borderStyle='solid';this.style.borderColor='var(--color-accent)'"
+              onblur="this.style.borderStyle='dashed';this.style.borderColor=''"
+            >
+            <button
+              type="submit"
+              style="
+                padding:9px var(--space-4);
+                background:var(--color-accent);color:#fff;
+                border:none;border-radius:var(--radius-md);
+                font-family:var(--font-body);font-size:var(--text-xl);font-weight:700;
+                cursor:pointer;flex-shrink:0;
+                transition:opacity var(--ease-fast);
+                display:flex;align-items:center;justify-content:center;width:40px;
+              "
+              onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'"
+            >+</button>
+          </div>
+        </form>
+
+      </div>
+      <!-- end checkpoints -->
+
+    </div>
+    <!-- end manage panel -->
+
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+
+<!-- ── EMPTY STATE ── -->
+<div style="text-align:center;padding:var(--space-20) var(--page-padding);background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-2xl);">
+  <div style="font-size:3.5rem;opacity:0.22;margin-bottom:var(--space-5);">🏗️</div>
+  <h2 style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.02em;margin-bottom:var(--space-3);">No Works Yet</h2>
+  <p style="font-size:var(--text-base);color:var(--color-text-tertiary);max-width:320px;margin:0 auto var(--space-7);">Create your first project to start tracking progress and costs.</p>
+  <button onclick="openModal('createWorkModal')" class="btn btn-primary">+ Create First Work</button>
+</div>
+
+{% endif %}
+
+
+<!-- ══════════════════════════════════
+     MODAL: Create New Work
+     (matches payments modal style)
+══════════════════════════════════ -->
+<div
+  id="createWorkModal"
+  style="
+    display:none;position:fixed;inset:0;z-index:1040;
+    background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);
+    align-items:flex-start;justify-content:center;
+    padding:var(--page-padding);padding-top:max(var(--space-8),4vh);
+    overflow-y:auto;
+  "
+  onclick="if(event.target===this)closeModal('createWorkModal')"
+>
+  <div style="
+    background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);
+    border-radius:var(--radius-2xl);width:100%;max-width:560px;
+    box-shadow:var(--shadow-2xl);
+    animation:fadeUp 0.28s cubic-bezier(0.25,0.46,0.45,0.94) both;
+    margin-bottom:var(--space-8);
+  ">
+
+    <!-- Sticky modal header -->
+    <div style="
+      display:flex;align-items:center;justify-content:space-between;
+      padding:var(--space-6) var(--space-8);
+      border-bottom:1px solid var(--color-border-subtle);
+      background:var(--color-bg-subtle);
+      border-radius:var(--radius-2xl) var(--radius-2xl) 0 0;
+      position:sticky;top:0;z-index:2;
+    ">
+      <div>
+        <h2 style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.02em;margin:0;">New Work</h2>
+        <p style="font-size:var(--text-sm);color:var(--color-text-tertiary);margin-top:2px;">Define the project, budget, and timeline</p>
+      </div>
+      <button
+        onclick="closeModal('createWorkModal')"
+        style="
+          width:32px;height:32px;
+          background:var(--color-bg-surface);border:1px solid var(--color-border-default);
+          border-radius:var(--radius-md);cursor:pointer;
+          font-size:var(--text-sm);color:var(--color-text-secondary);
+          display:flex;align-items:center;justify-content:center;flex-shrink:0;
+          transition:background var(--ease-fast);
+        "
+        onmouseover="this.style.background='var(--color-bg-muted)'"
+        onmouseout="this.style.background=''"
+      >✕</button>
+    </div>
+
+    <!-- Form body -->
+    <form method="POST" action="{{ url_for('create_work', slug=apartment.slug) }}" style="padding:var(--space-7) var(--space-8) var(--space-8);">
+
+      <!-- Title -->
+      <div style="margin-bottom:var(--space-5);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Title <span style="color:var(--color-danger)">*</span></label>
+        <input
+          type="text" name="title" required
+          placeholder="e.g. Lobby renovation"
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''"
+        >
+      </div>
+
+      <!-- Description -->
+      <div style="margin-bottom:var(--space-5);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Description</label>
+        <textarea
+          name="description" rows="3"
+          placeholder="What work is being done?"
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);color:var(--color-text-primary);resize:vertical;transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''"
+        ></textarea>
+      </div>
+
+      <!-- Estimated Cost -->
+      <div style="margin-bottom:var(--space-5);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Estimated Cost (₹) <span style="color:var(--color-danger)">*</span></label>
+        <input
+          type="number" name="estimated_cost" step="0.01" required
+          placeholder="e.g. 50000"
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''"
+        >
+      </div>
+
+      <!-- Start + End dates -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);margin-bottom:var(--space-7);" class="work-date-grid">
+        <div>
+          <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Start Date <span style="color:var(--color-danger)">*</span></label>
+          <input
+            type="date" name="start_date" required
+            style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+            onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+            onblur="this.style.borderColor='';this.style.boxShadow=''"
+          >
+        </div>
+        <div>
+          <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">End Date (Est.)</label>
+          <input
+            type="date" name="end_date"
+            style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+            onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+            onblur="this.style.borderColor='';this.style.boxShadow=''"
+          >
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block" style="font-weight:700;">Create Work →</button>
+
+    </form>
+  </div>
+</div>
+
+
+<!-- ── Styles ── -->
+<style>
+  @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes pulse  { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  @media (max-width:520px) {
+    .work-date-grid { grid-template-columns:1fr !important; }
+  }
+</style>
+
+
+<!-- ── Scripts ── -->
+<script>
+  // ── Modal ──
+  function openModal(id)  { document.getElementById(id).style.display = 'flex'; document.body.style.overflow='hidden'; }
+  function closeModal(id) { document.getElementById(id).style.display = 'none';  document.body.style.overflow=''; }
+  document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal('createWorkModal'); });
+
+  // ── Filter tabs ──
+  function filterWorks(filter) {
+    document.querySelectorAll('#filterBar button').forEach(btn => {
+      const a = btn.dataset.filter === filter;
+      btn.style.background  = a ? 'var(--color-accent)'  : 'var(--color-bg-surface)';
+      btn.style.color       = a ? '#fff'                 : 'var(--color-text-secondary)';
+      btn.style.borderColor = a ? 'var(--color-accent)'  : 'var(--color-border-default)';
+    });
+    document.querySelectorAll('.work-card').forEach(card => {
+      card.style.display = (filter==='all' || card.dataset.status===filter) ? '' : 'none';
+    });
+    // Close all manage panels on filter change
+    document.querySelectorAll('[id^="manage-"]').forEach(p => p.style.display='none');
+    resetManageBtns();
+  }
+
+  // ── Manage panel toggle ──
+  function toggleManage(workId) {
+    const panel = document.getElementById('manage-' + workId);
+    const btn   = document.getElementById('manageBtnLabel-' + workId);
+    const icon  = document.getElementById('manageBtnIcon-' + workId);
+    const text  = document.getElementById('manageBtnText-' + workId);
+    const isOpen = panel.style.display !== 'none';
+
+    // Close all first
+    document.querySelectorAll('[id^="manage-"]').forEach(p => p.style.display='none');
+    resetManageBtns();
+
+    // Open this one if it was closed
+    if (!isOpen) {
+      panel.style.display = 'block';
+      btn.dataset.open    = '1';
+      btn.style.borderColor = 'var(--color-accent-border)';
+      btn.style.color       = 'var(--color-accent)';
+      btn.style.background  = 'var(--color-accent-subtle)';
+      icon.textContent = '✕';
+      text.textContent = 'Close';
+    }
+  }
+
+  function resetManageBtns() {
+    document.querySelectorAll('[id^="manageBtnLabel-"]').forEach(btn => {
+      btn.style.borderColor = '';
+      btn.style.color       = '';
+      btn.style.background  = '';
+      delete btn.dataset.open;
+    });
+    document.querySelectorAll('[id^="manageBtnIcon-"]').forEach(el => el.textContent = '⚙');
+    document.querySelectorAll('[id^="manageBtnText-"]').forEach(el => el.textContent = 'Manage Work');
+  }
+
+  // ── Show actual cost field when status = completed ──
+  function toggleActualCost(select, workId) {
+    document.getElementById('cost-field-' + workId).style.display =
+      select.value === 'completed' ? '' : 'none';
+  }
+
+  // ════════════════════════════════════
+  //   AJAX HELPERS  (consolidated)
+  // ════════════════════════════════════
+  const CHECK_SVG = '<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  // Apply toggle-checkpoint result to DOM
+  function applyToggleResult(data, cpElem, workCard) {
+    const done = data.new_state;
+
+    // Row styling
+    cpElem.style.background   = done ? 'rgba(34,197,94,0.06)' : 'var(--color-bg-surface)';
+    cpElem.style.borderColor  = done ? 'rgba(34,197,94,0.20)' : 'var(--color-border-subtle)';
+
+    // Tick button
+    const btn = cpElem.querySelector('.cp-tick');
+    if (btn) {
+      btn.style.background  = done ? '#16a34a' : 'transparent';
+      btn.style.borderColor = done ? '#16a34a' : 'var(--color-border-default)';
+      btn.innerHTML         = done ? CHECK_SVG : '';
+      btn.classList.toggle('cp-ticked', done);
+    }
+
+    // Title strikethrough
+    const titleEl = cpElem.querySelector('.cp-title-text');
+    if (titleEl) {
+      titleEl.style.textDecoration = done ? 'line-through' : '';
+      titleEl.style.color = done ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)';
+    }
+
+    // Done-at timestamp
+    let metaEl = cpElem.querySelector('.cp-done-at');
+    if (done && data.done_at) {
+      if (!metaEl) {
+        metaEl = document.createElement('span');
+        metaEl.className = 'cp-done-at';
+        metaEl.style.cssText = 'font-size:var(--text-xs);color:var(--color-text-tertiary);white-space:nowrap;flex-shrink:0;';
+        cpElem.appendChild(metaEl);
+      }
+      metaEl.textContent = data.done_at;
+    } else if (metaEl) {
+      metaEl.textContent = '';
+    }
+
+    // Update card stats
+    if (workCard) {
+      const pct  = workCard.querySelector('.work-pct');
+      const fill = workCard.querySelector('.work-fill');
+      const val  = workCard.querySelector('.cp-done-val');
+      const countLabel = workCard.querySelector('[id^="cpCountLabel-"]');
+      if (pct)  pct.textContent  = data.progress + '%';
+      if (fill) fill.style.width = data.progress + '%';
+      if (val)  val.textContent  = data.done + '/' + data.total;
+      if (countLabel) countLabel.textContent = data.done + '/' + data.total + ' done';
+    }
+  }
+
+  // Attach toggle handler to a form
+  function attachToggleHandler(form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      fetch(form.action, { method:'POST', body:new FormData(form), headers:{'X-Requested-With':'XMLHttpRequest'} })
+        .then(r => r.json())
+        .then(data => {
+          if (!data?.ok) { alert(data?.error || 'Could not update checkpoint'); return; }
+          applyToggleResult(data, form.closest('.cp-item'), form.closest('.work-card'));
+        })
+        .catch(() => alert('Error updating checkpoint'));
+    });
+  }
+
+  // Bind all existing toggle forms on load
+  document.querySelectorAll('.toggle-cp-form').forEach(attachToggleHandler);
+
+  // ── AJAX add checkpoint ──
+  document.querySelectorAll('.add-cp-form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const titleInput = form.querySelector('input[name="title"]');
+      if (!titleInput.value.trim()) return;
+
+      fetch(form.action, { method:'POST', body:new FormData(form), headers:{'X-Requested-With':'XMLHttpRequest'} })
+        .then(r => r.json())
+        .then(data => {
+          if (!data?.ok) { alert(data?.error || 'Could not add checkpoint'); return; }
+
+          // Remove "no checkpoints" message if present
+          const card = form.closest('.work-card');
+          const workId = card?.dataset.id;
+          const cpList = document.getElementById('cpList-' + workId);
+          const noMsg  = document.getElementById('noCpMsg-' + workId);
+          if (noMsg) noMsg.remove();
+
+          // Build new checkpoint row
+          const match = form.action.match(/\/apartments\/([^/]+)\/admin\/works\/(\d+)/);
+          if (!match) return;
+          const [, slug, wid] = match;
+
+          const row = document.createElement('div');
+          row.className = 'cp-item';
+          row.dataset.cp = data.cp_id;
+          row.style.cssText = 'display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-4);background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-md);transition:all var(--ease-fast);';
+          row.innerHTML = `
+            <form class="toggle-cp-form" method="POST"
+                  action="/apartments/${slug}/admin/works/${wid}/checkpoints/${data.cp_id}/toggle"
+                  enctype="multipart/form-data" style="display:contents;">
+              <button type="submit" class="cp-tick"
+                style="width:20px;height:20px;flex-shrink:0;border-radius:4px;border:2px solid var(--color-border-default);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;transition:all var(--ease-fast);"
+                onmouseover="if(!this.classList.contains('cp-ticked')){this.style.borderColor='#16a34a';}"
+                onmouseout="if(!this.classList.contains('cp-ticked')){this.style.borderColor='';}">
+              </button>
+              <span class="cp-title-text" style="flex:1;font-size:var(--text-sm);color:var(--color-text-primary);">${data.title}</span>
+              <label style="flex-shrink:0;cursor:pointer;font-size:1rem;opacity:0.5;transition:opacity var(--ease-fast);"
+                     title="Attach a photo" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'">
+                📷<input type="file" name="photo" accept="image/*" style="display:none;" onchange="this.closest('form').submit()">
+              </label>
+            </form>
+          `;
+          if (cpList) cpList.appendChild(row);
+
+          // Attach AJAX handler to the new row
+          const newForm = row.querySelector('.toggle-cp-form');
+          if (newForm) attachToggleHandler(newForm);
+
+          // Update checkpoint count in manage panel header
+          const countLabel = card?.querySelector('[id^="cpCountLabel-"]');
+          if (countLabel) {
+            const parts = countLabel.textContent.split('/');
+            const done  = parseInt(parts[0]) || 0;
+            const total = parseInt(parts[1]) || 0;
+            countLabel.textContent = done + '/' + (total + 1) + ' done';
+          }
+          // Update meta tile
+          const doneVal = card?.querySelector('.cp-done-val');
+          if (doneVal) {
+            const [d, t] = doneVal.textContent.split('/').map(Number);
+            doneVal.textContent = d + '/' + ((t||0) + 1);
+          }
+
+          titleInput.value = '';
+          titleInput.focus();
+        })
+        .catch(() => alert('Error adding checkpoint'));
+    });
+  });
+</script>
+
+{% endblock %}

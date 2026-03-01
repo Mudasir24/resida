@@ -1,0 +1,899 @@
+﻿{% extends "apartment_base.html" %}
+
+{% block title %}Analytics — {{ apartment.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ════════════════════════════════════════════════════════
+   ANALYTICS PAGE  —  local design tokens
+   Resida Design System integration layer
+════════════════════════════════════════════════════════ */
+:root {
+  /* Semantic chart colours — intentionally NOT Resida status colours;
+     these are data-visualisation palette only */
+  --an-green  : #10b981;
+  --an-amber  : #f59e0b;
+  --an-red    : #ef4444;
+  --an-blue   : #3b82f6;
+  --an-teal   : #14b8a6;
+  --an-indigo : #6366f1;
+  --an-purple : #8b5cf6;
+  --an-orange : #f97316;
+  /* Layout */
+  --an-r   : var(--radius-xl, 16px);
+  --an-gap : var(--space-6, 24px);
+}
+
+/* ── Page container ── */
+.an-page { max-width:1360px; margin:0 auto; padding:0 0 80px; }
+
+/* ── Section label (horizontal rule + label combo) ── */
+.an-section-label {
+  font-size:var(--text-xs, .7rem);
+  font-weight:700;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:var(--color-text-tertiary);
+  margin:0 0 var(--space-5, 20px);
+  display:flex;
+  align-items:center;
+  gap:var(--space-3, 8px);
+}
+.an-section-label::after {
+  content:'';
+  flex:1;
+  height:1px;
+  background:var(--color-border-subtle);
+}
+
+/* ── Base analytics card ── */
+.an-card {
+  background:var(--color-bg-surface);
+  border:1px solid var(--color-border-subtle);
+  border-radius:var(--an-r);
+  padding:var(--space-7, 28px);
+  transition:box-shadow var(--ease-fast, .2s) ease, transform var(--ease-fast, .2s) ease;
+  position:relative;
+  overflow:hidden;
+  animation:anFadeUp .4s ease both;
+}
+.an-card:hover {
+  box-shadow:var(--shadow-md, 0 8px 32px rgba(0,0,0,.10));
+  transform:translateY(-2px);
+}
+
+/* 3px colour bar across top of each card */
+.an-card::before {
+  content:'';
+  position:absolute;
+  top:0; left:0; right:0;
+  height:3px;
+  /* Default: Resida gold — not purple */
+  background:linear-gradient(90deg, var(--color-accent, #D4A853), #C4A882);
+}
+/* Semantic modifiers */
+.an-card.gold::before   { background:linear-gradient(90deg, #D4A853, #C4A882); }
+.an-card.green::before  { background:linear-gradient(90deg, var(--an-green), var(--an-teal)); }
+.an-card.amber::before  { background:linear-gradient(90deg, var(--an-amber), var(--an-orange)); }
+.an-card.red::before    { background:linear-gradient(90deg, var(--an-red), var(--an-orange)); }
+.an-card.blue::before   { background:linear-gradient(90deg, var(--an-blue), var(--an-indigo)); }
+.an-card.teal::before   { background:linear-gradient(90deg, var(--an-teal), var(--an-green)); }
+
+/* ── KPI metric layout ── */
+.an-metric-label {
+  font-size:var(--text-xs, .72rem);
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.07em;
+  color:var(--color-text-tertiary);
+  margin-bottom:var(--space-2, 8px);
+}
+.an-metric-icon { font-size:1.6rem; margin-bottom:10px; display:block; }
+.an-metric-val  {
+  font-size:2rem;
+  font-weight:800;
+  font-family:var(--font-display);
+  color:var(--color-text-primary);
+  line-height:1;
+  margin-bottom:6px;
+}
+.an-metric-sub  { font-size:.8rem; color:var(--color-text-secondary); }
+
+/* ── Grade badges ── */
+.an-badge { display:inline-block; padding:2px 10px; border-radius:var(--radius-full, 999px); font-size:.7rem; font-weight:700; margin-top:6px; }
+.badge-green { background:rgba(16,185,129,.10); color:#059669; border:1px solid rgba(16,185,129,.20); }
+.badge-amber { background:rgba(245,158,11,.10); color:#d97706; border:1px solid rgba(245,158,11,.20); }
+.badge-red   { background:rgba(239,68,68,.10);  color:#dc2626; border:1px solid rgba(239,68,68,.20); }
+.badge-blue  { background:rgba(59,130,246,.10); color:#2563eb; border:1px solid rgba(59,130,246,.20); }
+.grade-a { background:rgba(16,185,129,.10); color:#059669; border:1px solid rgba(16,185,129,.20); }
+.grade-b { background:rgba(59,130,246,.10); color:#2563eb; border:1px solid rgba(59,130,246,.20); }
+.grade-c { background:rgba(245,158,11,.10); color:#d97706; border:1px solid rgba(245,158,11,.20); }
+.grade-d { background:rgba(239,68,68,.10);  color:#dc2626; border:1px solid rgba(239,68,68,.20); }
+
+/* ── Health gauge ── */
+.an-health-wrap        { display:flex; flex-direction:column; align-items:center; gap:4px; }
+.an-health-canvas-wrap { position:relative; width:180px; height:100px; margin:0 auto; }
+.an-health-num         { position:absolute; bottom:-4px; left:50%; transform:translateX(-50%); font-size:2.4rem; font-weight:800; font-family:var(--font-display); color:var(--color-text-primary); line-height:1; }
+.an-health-label       { font-size:.78rem; font-weight:600; letter-spacing:.05em; text-transform:uppercase; margin-top:18px; color:var(--color-text-secondary); }
+.an-health-grade       { display:inline-block; padding:4px 14px; border-radius:var(--radius-full, 999px); font-size:.75rem; font-weight:700; letter-spacing:.05em; margin-top:6px; }
+
+/* ── Chart wrappers ── */
+.an-chart-title { font-size:1rem; font-weight:700; color:var(--color-text-primary); margin:0 0 6px; }
+.an-chart-sub   { font-size:.8rem; color:var(--color-text-tertiary); margin:0 0 20px; }
+.an-chart-wrap  { position:relative; }
+.h300 { height:300px; } .h260 { height:260px; } .h220 { height:220px; } .h160 { height:160px; }
+
+/* ── Leaderboard ── */
+.an-lb-item { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:var(--radius-lg, 10px); margin-bottom:8px; background:var(--color-bg-subtle); transition:background var(--ease-fast, .15s); }
+.an-lb-item:hover { background:var(--color-bg-muted); }
+[data-theme="dark"] .an-lb-item { background:rgba(255,255,255,.04); }
+[data-theme="dark"] .an-lb-item:hover { background:rgba(255,255,255,.07); }
+.an-lb-rank { width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:.7rem; font-weight:800; flex-shrink:0; }
+.rank-1 { background:rgba(251,191,36,.20); color:#d97706; }
+.rank-2 { background:rgba(156,163,175,.20); color:#6b7280; }
+.rank-3 { background:rgba(217,119,6,.15);  color:#92400e; }
+.rank-n { background:rgba(99,102,241,.10); color:#4f46e5; }
+.an-lb-info   { flex:1; min-width:0; }
+.an-lb-name   { font-weight:600; font-size:.85rem; color:var(--color-text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.an-lb-detail { font-size:.73rem; color:var(--color-text-tertiary); margin-top:2px; }
+.an-lb-score-wrap    { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.an-lb-score-bar-bg  { width:56px; height:5px; background:var(--color-border-subtle); border-radius:99px; overflow:hidden; }
+[data-theme="dark"] .an-lb-score-bar-bg { background:rgba(255,255,255,.10); }
+.an-lb-score-bar-fill { height:100%; border-radius:99px; transition:width .6s cubic-bezier(.4,0,.2,1); }
+.an-lb-score-num { font-size:.78rem; font-weight:700; color:var(--color-text-primary); min-width:32px; text-align:right; }
+
+/* ── Smart Insights ── */
+.an-insights-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:var(--space-4, 16px); }
+.an-insight {
+  border-radius:var(--radius-lg, 14px);
+  padding:var(--space-5, 20px);
+  border-left:3px solid;
+  background:var(--color-bg-surface);
+  border-top:1px solid var(--color-border-subtle);
+  border-right:1px solid var(--color-border-subtle);
+  border-bottom:1px solid var(--color-border-subtle);
+  transition:box-shadow var(--ease-fast, .2s);
+}
+.an-insight:hover { box-shadow:var(--shadow-sm, 0 2px 8px rgba(0,0,0,.06)); }
+.an-insight.green { border-left-color:var(--an-green); }
+.an-insight.amber { border-left-color:var(--an-amber); }
+.an-insight.red   { border-left-color:var(--an-red); }
+.an-insight.blue  { border-left-color:var(--an-blue); }
+.an-insight-emoji { font-size:1.5rem; margin-bottom:var(--space-2, 8px); }
+.an-insight-title { font-weight:700; font-size:.88rem; color:var(--color-text-primary); margin-bottom:4px; }
+.an-insight-body  { font-size:.82rem; color:var(--color-text-secondary); line-height:1.6; }
+
+/* ── Complaint funnel ── */
+.an-funnel-row   { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+.an-funnel-label { font-size:.8rem; font-weight:600; color:var(--color-text-secondary); min-width:88px; }
+.an-funnel-bar-bg { flex:1; height:8px; background:var(--color-bg-subtle); border-radius:99px; overflow:hidden; }
+[data-theme="dark"] .an-funnel-bar-bg { background:rgba(255,255,255,.10); }
+.an-funnel-bar   { height:100%; border-radius:99px; transition:width .7s cubic-bezier(.4,0,.2,1); }
+.an-funnel-count { font-size:.8rem; font-weight:700; color:var(--color-text-primary); min-width:24px; text-align:right; }
+
+/* ── Mini stats row ── */
+.an-mini-stats { display:flex; gap:20px; flex-wrap:wrap; margin-top:12px; }
+.an-mini-stat  { text-align:center; }
+.an-mini-val   { font-size:1.1rem; font-weight:800; color:var(--color-text-primary); font-family:var(--font-display); }
+.an-mini-lbl   { font-size:.68rem; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:.06em; margin-top:2px; }
+
+/* ── Grid layouts ── */
+.an-grid-4  { display:grid; grid-template-columns:repeat(4,1fr); gap:var(--an-gap); }
+.an-grid-2  { display:grid; grid-template-columns:repeat(2,1fr); gap:var(--an-gap); }
+.an-grid-21 { display:grid; grid-template-columns:2fr 1fr; gap:var(--an-gap); }
+.an-section { margin-top:var(--space-10, 40px); }
+
+/* ── Staggered card entrance animation ── */
+@keyframes anFadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+.an-card:nth-child(1)  { animation-delay:.04s; } .an-card:nth-child(2)  { animation-delay:.08s; }
+.an-card:nth-child(3)  { animation-delay:.12s; } .an-card:nth-child(4)  { animation-delay:.16s; }
+.an-card:nth-child(5)  { animation-delay:.20s; } .an-card:nth-child(6)  { animation-delay:.24s; }
+.an-card:nth-child(7)  { animation-delay:.28s; } .an-card:nth-child(8)  { animation-delay:.32s; }
+.an-card:nth-child(9)  { animation-delay:.36s; } .an-card:nth-child(10) { animation-delay:.40s; }
+
+/* ── Responsive ── */
+@media (max-width:1100px) {
+  .an-grid-4  { grid-template-columns:repeat(2,1fr); }
+  .an-grid-21 { grid-template-columns:1fr; }
+}
+@media (max-width:720px) {
+  .an-grid-4, .an-grid-2 { grid-template-columns:1fr; }
+}
+</style>
+{% endblock %}
+
+
+{% block content %}
+
+{# ── Jinja computations ── #}
+{% set total_rev = cashflow_income | sum %}
+{% set total_exp = cashflow_expenses | sum %}
+{% set net6      = total_rev - total_exp %}
+
+{# Health grade #}
+{% if health_score >= 85 %}
+  {% set grade='A' %}{% set grade_class='grade-a' %}{% set grade_label='Excellent' %}
+{% elif health_score >= 70 %}
+  {% set grade='B' %}{% set grade_class='grade-b' %}{% set grade_label='Good' %}
+{% elif health_score >= 50 %}
+  {% set grade='C' %}{% set grade_class='grade-c' %}{% set grade_label='Fair' %}
+{% else %}
+  {% set grade='D' %}{% set grade_class='grade-d' %}{% set grade_label='Needs Attention' %}
+{% endif %}
+
+{# Collection rate badge class #}
+{% if bill_stats.collection_rate >= 85 %}{% set col_badge='badge-green' %}
+{% elif bill_stats.collection_rate >= 60 %}{% set col_badge='badge-amber' %}
+{% else %}{% set col_badge='badge-red' %}{% endif %}
+
+
+<div class="an-page">
+
+  <!-- ══════════════════════════════════
+       PAGE HEADER — matches other admin pages
+  ══════════════════════════════════ -->
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-6);flex-wrap:wrap;margin-bottom:var(--space-8);">
+    <div>
+      <p style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Admin · {{ apartment.name }}</p>
+      <h1 style="font-family:var(--font-display);font-size:clamp(1.5rem,3vw,2.25rem);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.03em;line-height:1.1;margin-bottom:var(--space-2);">Analytics</h1>
+      <p style="font-size:var(--text-base);color:var(--color-text-secondary);">Real-time insights and financial health for <strong style="color:var(--color-text-primary);font-weight:700;">{{ apartment.name }}</strong>.</p>
+    </div>
+    <!-- Health grade pill in header -->
+    <div style="display:flex;align-items:center;gap:var(--space-3);">
+      <span class="an-health-grade {{ grade_class }}" style="font-size:var(--text-sm);">{{ grade }} &mdash; {{ grade_label }}</span>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════
+       ROW 1: HEALTH SCORE + 3 KPI CARDS
+  ══════════════════════════════════ -->
+  <div class="an-grid-4">
+
+    <!-- Health gauge -->
+    <div class="an-card blue">
+      <div class="an-metric-label">Community Health Score</div>
+      <div class="an-health-wrap">
+        <div class="an-health-canvas-wrap">
+          <canvas id="healthGaugeChart" width="180" height="100"></canvas>
+          <div class="an-health-num">{{ health_score }}</div>
+        </div>
+        <div class="an-health-label">Out of 100</div>
+        <span class="an-health-grade {{ grade_class }}">{{ grade }} &mdash; {{ grade_label }}</span>
+      </div>
+    </div>
+
+    <!-- Bill collection rate -->
+    <div class="an-card {% if bill_stats.collection_rate >= 85 %}green{% elif bill_stats.collection_rate >= 60 %}amber{% else %}red{% endif %}">
+      <div class="an-metric-label">Bill Collection Rate</div>
+      <span class="an-metric-icon">💰</span>
+      <div class="an-metric-val">{{ bill_stats.collection_rate }}%</div>
+      <div class="an-metric-sub">{{ bill_stats.paid }} of {{ bill_stats.total }} bills paid</div>
+      <span class="an-badge {{ col_badge }}">{% if bill_stats.collection_rate >= 85 %}On Track{% elif bill_stats.collection_rate >= 60 %}Moderate{% else %}Below Target{% endif %}</span>
+      {% if bill_stats.overdue_amount > 0 %}
+      <div style="font-size:.75rem;color:var(--an-red);margin-top:var(--space-2);font-weight:600;">₹{{ "%.0f"|format(bill_stats.overdue_amount) }} overdue</div>
+      {% endif %}
+    </div>
+
+    <!-- Complaint resolution -->
+    <div class="an-card {% if complaint_stats.total == 0 or complaint_stats.open == 0 %}green{% elif complaint_stats.open > complaint_stats.resolved %}amber{% else %}green{% endif %}">
+      <div class="an-metric-label">Complaint Resolution</div>
+      <span class="an-metric-icon">📋</span>
+      <div class="an-metric-val">{% if complaint_stats.total > 0 %}{{ "%.0f"|format(complaint_stats.resolved / complaint_stats.total * 100) }}%{% else %}100%{% endif %}</div>
+      <div class="an-metric-sub">{{ complaint_stats.resolved }} / {{ complaint_stats.total }} resolved</div>
+      {% if complaint_stats.avg_resolution_days > 0 %}
+      <span class="an-badge {% if complaint_stats.avg_resolution_days <= 3 %}badge-green{% elif complaint_stats.avg_resolution_days <= 7 %}badge-amber{% else %}badge-red{% endif %}">Avg {{ complaint_stats.avg_resolution_days }}d</span>
+      {% endif %}
+      {% if complaint_stats.open > 0 %}
+      <div style="font-size:.75rem;color:var(--an-amber);margin-top:var(--space-2);font-weight:600;">{{ complaint_stats.open }} open{% if complaint_stats.in_progress > 0 %}, {{ complaint_stats.in_progress }} in progress{% endif %}</div>
+      {% endif %}
+    </div>
+
+    <!-- Residents -->
+    <div class="an-card">
+      <div class="an-metric-label">Residents</div>
+      <span class="an-metric-icon">🏠</span>
+      <div class="an-metric-val">{{ residents_stats.active }}</div>
+      <div class="an-metric-sub">Active of {{ residents_stats.total }} registered</div>
+      <div class="an-mini-stats">
+        <div class="an-mini-stat">
+          <div class="an-mini-val">{{ residents_stats.owners }}</div>
+          <div class="an-mini-lbl">Owners</div>
+        </div>
+        <div class="an-mini-stat">
+          <div class="an-mini-val">{{ residents_stats.tenants }}</div>
+          <div class="an-mini-lbl">Tenants</div>
+        </div>
+        {% if residents_stats.invited > 0 %}
+        <div class="an-mini-stat">
+          <div class="an-mini-val" style="color:var(--an-amber);">{{ residents_stats.invited }}</div>
+          <div class="an-mini-lbl">Pending</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div><!-- /an-grid-4 -->
+
+
+  <!-- ══════════════════════════════════
+       ROW 2: 6-MONTH CASH FLOW
+  ══════════════════════════════════ -->
+  <div class="an-section">
+    <div class="an-section-label">💸 6-Month Cash Flow</div>
+    <div class="an-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:var(--space-4);margin-bottom:var(--space-2);">
+        <div>
+          <div class="an-chart-title">Monthly Income vs Expenses</div>
+          <div class="an-chart-sub">Collections received vs community costs — last 6 months</div>
+        </div>
+        <div style="display:flex;gap:var(--space-6);flex-wrap:wrap;">
+          <div style="text-align:right;">
+            <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-tertiary);">Net (6 mo.)</div>
+            <div style="font-size:1.3rem;font-weight:800;font-family:var(--font-display);color:{% if net6 >= 0 %}var(--an-green){% else %}var(--an-red){% endif %};">{% if net6 >= 0 %}+{% endif %}₹{{ "%.0f"|format(net6) }}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-tertiary);">Collected</div>
+            <div style="font-size:1.3rem;font-weight:800;font-family:var(--font-display);color:var(--an-green);">₹{{ "%.0f"|format(total_rev) }}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-tertiary);">Spent</div>
+            <div style="font-size:1.3rem;font-weight:800;font-family:var(--font-display);color:var(--an-amber);">₹{{ "%.0f"|format(total_exp) }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="an-chart-wrap h300"><canvas id="cashflowChart"></canvas></div>
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════
+       ROW 3: EXPENSE DONUT + COMPLAINT FUNNEL
+  ══════════════════════════════════ -->
+  <div class="an-section">
+    <div class="an-section-label">🔍 Expense & Complaint Breakdown</div>
+    <div class="an-grid-2">
+
+      <!-- Expense donut -->
+      <div class="an-card amber">
+        <div class="an-chart-title">Expenses by Category</div>
+        <div class="an-chart-sub">All-time category distribution</div>
+        {% if expense_categories %}
+          <div class="an-chart-wrap h220"><canvas id="expenseCatChart"></canvas></div>
+          <div style="display:flex;flex-wrap:wrap;gap:var(--space-2);margin-top:var(--space-4);" id="expLegend"></div>
+        {% else %}
+          <div style="text-align:center;padding:var(--space-10) 0;color:var(--color-text-tertiary);">No expense data yet.</div>
+        {% endif %}
+      </div>
+
+      <!-- Complaint funnel + trend -->
+      <div class="an-card red">
+        <div class="an-chart-title">Complaint Status</div>
+        <div class="an-chart-sub">Current pipeline and monthly volume</div>
+        {% set ctotal = complaint_stats.total if complaint_stats.total > 0 else 1 %}
+        <div style="margin-bottom:var(--space-5);">
+          <div class="an-funnel-row">
+            <div class="an-funnel-label">Open</div>
+            <div class="an-funnel-bar-bg"><div class="an-funnel-bar" style="width:{{ (complaint_stats.open / ctotal * 100)|round|int }}%;background:var(--an-red);"></div></div>
+            <div class="an-funnel-count">{{ complaint_stats.open }}</div>
+          </div>
+          <div class="an-funnel-row">
+            <div class="an-funnel-label">In Progress</div>
+            <div class="an-funnel-bar-bg"><div class="an-funnel-bar" style="width:{{ (complaint_stats.in_progress / ctotal * 100)|round|int }}%;background:var(--an-amber);"></div></div>
+            <div class="an-funnel-count">{{ complaint_stats.in_progress }}</div>
+          </div>
+          <div class="an-funnel-row">
+            <div class="an-funnel-label">Resolved</div>
+            <div class="an-funnel-bar-bg"><div class="an-funnel-bar" style="width:{{ (complaint_stats.resolved / ctotal * 100)|round|int }}%;background:var(--an-green);"></div></div>
+            <div class="an-funnel-count">{{ complaint_stats.resolved }}</div>
+          </div>
+        </div>
+        <div class="an-chart-title" style="font-size:.85rem;margin-bottom:4px;">Monthly Volume</div>
+        <div class="an-chart-wrap h160"><canvas id="complaintTrendChart"></canvas></div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- ══════════════════════════════════
+       ROW 4: WORKS BUDGET
+  ══════════════════════════════════ -->
+  {% if works_detail %}
+  <div class="an-section">
+    <div class="an-section-label">🔧 Works Budget Analysis</div>
+    <div class="an-card green">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:var(--space-4);margin-bottom:var(--space-2);">
+        <div>
+          <div class="an-chart-title">Estimated vs Actual Cost per Work</div>
+          <div class="an-chart-sub">Red = over-run &nbsp;·&nbsp; Green = under / on budget</div>
+        </div>
+        <div style="display:flex;gap:var(--space-6);flex-wrap:wrap;">
+          <div style="text-align:right;">
+            <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-tertiary);">Variance (completed)</div>
+            <div style="font-size:1.25rem;font-weight:800;font-family:var(--font-display);color:{% if works_stats.budget_variance_pct > 10 %}var(--an-red){% elif works_stats.budget_variance_pct > 0 %}var(--an-amber){% else %}var(--an-green){% endif %};">{% if works_stats.budget_variance_pct > 0 %}+{% endif %}{{ works_stats.budget_variance_pct }}%</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-tertiary);">Completed</div>
+            <div style="font-size:1.25rem;font-weight:800;font-family:var(--font-display);color:var(--an-green);">{{ works_stats.completed }}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-tertiary);">Ongoing</div>
+            <div style="font-size:1.25rem;font-weight:800;font-family:var(--font-display);color:var(--an-amber);">{{ works_stats.ongoing }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="an-chart-wrap h260"><canvas id="worksChart"></canvas></div>
+    </div>
+  </div>
+  {% endif %}
+
+
+  <!-- ══════════════════════════════════
+       ROW 5: PAYMENT COMPLIANCE LEADERBOARD
+  ══════════════════════════════════ -->
+  {% if resident_payment_scores %}
+  <div class="an-section">
+    <div class="an-section-label">👥 Resident Payment Compliance</div>
+    <div class="an-grid-21">
+
+      <!-- Leaderboard list -->
+      <div class="an-card">
+        <div class="an-chart-title">Payment Compliance Ranking</div>
+        <div class="an-chart-sub">Sorted by payment score · residents with bills only</div>
+        <div style="margin-top:var(--space-4);max-height:380px;overflow-y:auto;padding-right:4px;">
+          {% for r in resident_payment_scores %}
+          {% set rank = loop.index %}
+          <div class="an-lb-item">
+            <div class="an-lb-rank {% if rank==1 %}rank-1{% elif rank==2 %}rank-2{% elif rank==3 %}rank-3{% else %}rank-n{% endif %}">
+              {% if rank==1 %}🥇{% elif rank==2 %}🥈{% elif rank==3 %}🥉{% else %}{{ rank }}{% endif %}
+            </div>
+            <div class="an-lb-info">
+              <div class="an-lb-name">{{ r.name }}</div>
+              <div class="an-lb-detail">
+                Flat {{ r.flat }} · {{ r.paid }}/{{ r.total }} paid
+                {% if r.overdue > 0 %}<span style="color:var(--an-red);font-weight:700;"> ⚠ {{ r.overdue }} overdue</span>{% endif %}
+              </div>
+            </div>
+            <div class="an-lb-score-wrap">
+              <div class="an-lb-score-bar-bg">
+                <div class="an-lb-score-bar-fill" style="width:{{ r.score }}%;background:{% if r.score >= 85 %}linear-gradient(90deg,var(--an-green),var(--an-teal)){% elif r.score >= 60 %}linear-gradient(90deg,var(--an-amber),var(--an-orange)){% else %}linear-gradient(90deg,var(--an-red),var(--an-orange)){% endif %};"></div>
+              </div>
+              <div class="an-lb-score-num" style="color:{% if r.score >= 85 %}var(--an-green){% elif r.score >= 60 %}var(--an-amber){% else %}var(--an-red){% endif %};">{{ r.score }}%</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Score distribution donut -->
+      <div class="an-card blue">
+        <div class="an-chart-title">Score Distribution</div>
+        <div class="an-chart-sub">How residents are grouped</div>
+        <div class="an-chart-wrap h220" style="margin-top:var(--space-2);"><canvas id="complianceChart"></canvas></div>
+        {% set excellent = resident_payment_scores | selectattr('score', 'ge', 85) | list | length %}
+        {% set good      = resident_payment_scores | selectattr('score', 'ge', 60) | selectattr('score', 'lt', 85) | list | length %}
+        {% set poor      = resident_payment_scores | selectattr('score', 'lt', 60) | list | length %}
+        <div class="an-mini-stats" style="justify-content:center;margin-top:var(--space-4);">
+          <div class="an-mini-stat"><div class="an-mini-val" style="color:var(--an-green);">{{ excellent }}</div><div class="an-mini-lbl">≥ 85%</div></div>
+          <div class="an-mini-stat"><div class="an-mini-val" style="color:var(--an-amber);">{{ good }}</div><div class="an-mini-lbl">60–84%</div></div>
+          <div class="an-mini-stat"><div class="an-mini-val" style="color:var(--an-red);">{{ poor }}</div><div class="an-mini-lbl">&lt; 60%</div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  {% endif %}
+
+
+  <!-- ══════════════════════════════════
+       ROW 6: SMART INSIGHTS
+  ══════════════════════════════════ -->
+  <div class="an-section">
+    <div class="an-section-label">💡 Smart Insights</div>
+    <div class="an-insights-grid">
+
+      {# ── Bill collection insight ── #}
+      {% if bill_stats.collection_rate >= 85 %}
+      <div class="an-insight green">
+        <div class="an-insight-emoji">🌟</div>
+        <div class="an-insight-title">Strong Collection Rate</div>
+        <div class="an-insight-body">{{ bill_stats.collection_rate }}% of all bills have been paid — excellent compliance.{% if bill_stats.overdue_amount > 0 %} ₹{{ "%.0f"|format(bill_stats.overdue_amount) }} still outstanding.{% endif %}</div>
+      </div>
+      {% elif bill_stats.collection_rate >= 60 %}
+      <div class="an-insight amber">
+        <div class="an-insight-emoji">⚠️</div>
+        <div class="an-insight-title">Collection Rate Needs Attention</div>
+        <div class="an-insight-body">Only {{ bill_stats.collection_rate }}% of bills are paid. {{ bill_stats.pending }} bills unpaid, totalling ₹{{ "%.0f"|format(bill_stats.pending_amount) }}. Consider sending payment reminders.</div>
+      </div>
+      {% else %}
+      <div class="an-insight red">
+        <div class="an-insight-emoji">🚨</div>
+        <div class="an-insight-title">Critical: Low Collection Rate</div>
+        <div class="an-insight-body">Less than 60% of bills collected. ₹{{ "%.0f"|format(bill_stats.overdue_amount) }} is overdue. Immediate follow-up with defaulting residents recommended.</div>
+      </div>
+      {% endif %}
+
+      {# ── Complaints insight ── #}
+      {% if complaint_stats.open > 5 %}
+      <div class="an-insight red">
+        <div class="an-insight-emoji">📋</div>
+        <div class="an-insight-title">Complaint Backlog Building</div>
+        <div class="an-insight-body">{{ complaint_stats.open }} complaints are open. High backlog erodes resident trust.{% if complaint_stats.avg_resolution_days > 7 %} Average resolution is {{ complaint_stats.avg_resolution_days }} days — aim for under 7.{% endif %}</div>
+      </div>
+      {% elif complaint_stats.avg_resolution_days > 7 %}
+      <div class="an-insight amber">
+        <div class="an-insight-emoji">⏱️</div>
+        <div class="an-insight-title">Slow Complaint Resolution</div>
+        <div class="an-insight-body">Average {{ complaint_stats.avg_resolution_days }} days to resolve a complaint. Faster responses (under 3 days) significantly improve resident satisfaction.</div>
+      </div>
+      {% elif complaint_stats.total > 0 %}
+      <div class="an-insight green">
+        <div class="an-insight-emoji">✅</div>
+        <div class="an-insight-title">Complaints Well Managed</div>
+        <div class="an-insight-body">{% if complaint_stats.avg_resolution_days > 0 %}Resolving in {{ complaint_stats.avg_resolution_days }} days on average. {% endif %}{{ complaint_stats.resolved }} of {{ complaint_stats.total }} resolved.</div>
+      </div>
+      {% endif %}
+
+      {# ── Cash flow insight ── #}
+      {% if net6 >= 0 %}
+      <div class="an-insight green">
+        <div class="an-insight-emoji">📈</div>
+        <div class="an-insight-title">Positive Net Cash Flow</div>
+        <div class="an-insight-body">Collections exceeded expenses by ₹{{ "%.0f"|format(net6) }} over 6 months. This surplus can be held as a maintenance reserve.</div>
+      </div>
+      {% else %}
+      <div class="an-insight amber">
+        <div class="an-insight-emoji">📉</div>
+        <div class="an-insight-title">Cash Flow Deficit</div>
+        <div class="an-insight-body">Expenses exceeded collections by ₹{{ "%.0f"|format(net6 * -1) }} over 6 months. Review largest expense categories or consider a maintenance levy adjustment.</div>
+      </div>
+      {% endif %}
+
+      {# ── Works budget insight ── #}
+      {% if works_stats.budget_variance_pct > 20 %}
+      <div class="an-insight red">
+        <div class="an-insight-emoji">💸</div>
+        <div class="an-insight-title">Works Over Budget</div>
+        <div class="an-insight-body">Completed works are running {{ works_stats.budget_variance_pct }}% over estimated budget. Review contractor quotes and approval flows.</div>
+      </div>
+      {% elif works_stats.budget_variance_pct < -10 %}
+      <div class="an-insight blue">
+        <div class="an-insight-emoji">🎯</div>
+        <div class="an-insight-title">Works Under Budget</div>
+        <div class="an-insight-body">Completed works came {{ (works_stats.budget_variance_pct * -1)|round(1) }}% under estimate — well managed. Savings can be added to the reserve fund.</div>
+      </div>
+      {% elif works_stats.total > 0 %}
+      <div class="an-insight green">
+        <div class="an-insight-emoji">🔧</div>
+        <div class="an-insight-title">Works on Budget</div>
+        <div class="an-insight-body">Works tracking close to budget ({{ works_stats.budget_variance_pct }}% variance). {{ works_stats.completed }} completed, {{ works_stats.ongoing }} in progress.</div>
+      </div>
+      {% endif %}
+
+      {# ── Pending invites insight ── #}
+      {% if residents_stats.invited > 3 %}
+      <div class="an-insight amber">
+        <div class="an-insight-emoji">📨</div>
+        <div class="an-insight-title">{{ residents_stats.invited }} Pending Invitations</div>
+        <div class="an-insight-body">Several residents invited but haven't registered yet. Follow up or re-send invites to complete onboarding and activate billing.</div>
+      </div>
+      {% endif %}
+
+      {# ── Occupancy insight ── #}
+      {% if residents_stats.total > 0 %}
+      <div class="an-insight blue">
+        <div class="an-insight-emoji">🏘️</div>
+        <div class="an-insight-title">Occupancy Snapshot</div>
+        <div class="an-insight-body">{{ residents_stats.active }} of {{ residents_stats.total }} registered residents active ({{ ((residents_stats.active / residents_stats.total) * 100)|round|int }}%). Owner-to-tenant ratio: {{ residents_stats.owners }}:{{ residents_stats.tenants }}.</div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div><!-- /Smart Insights -->
+
+</div><!-- /an-page -->
+
+
+<!-- ════════════════════════════════════
+     CHART.JS  (pinned 4.4.0)
+════════════════════════════════════ -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  /* ── Theme helpers ── */
+  function isDark()    { return document.documentElement.getAttribute('data-theme')==='dark'; }
+  function themeText() { return isDark()?'rgba(255,255,255,.60)':'rgba(0,0,0,.52)'; }
+  function themeGrid() { return isDark()?'rgba(255,255,255,.07)':'rgba(0,0,0,.06)'; }
+  function themeBg()   { return isDark()?'#1a2035':'#ffffff'; }
+
+  /* ── Template data ── */
+  const months      = {{ months_list | tojson }};
+  const incomeData  = {{ cashflow_income | tojson }};
+  const expData     = {{ cashflow_expenses | tojson }};
+  const netData     = {{ cashflow_net | tojson }};
+  const healthScore = {{ health_score }};
+  const expCatLbls  = {{ expense_categories | map(attribute='label') | list | tojson }};
+  const expCatData  = {{ expense_categories | map(attribute='amount') | list | tojson }};
+  const cmpMonthly  = {{ complaint_monthly | tojson }};
+  const worksData   = {{ works_detail | tojson }};
+  {% if resident_payment_scores %}
+  const rExcellent  = {{ resident_payment_scores | selectattr('score','ge',85) | list | length }};
+  const rGood       = {{ resident_payment_scores | selectattr('score','ge',60) | selectattr('score','lt',85) | list | length }};
+  const rPoor       = {{ resident_payment_scores | selectattr('score','lt',60) | list | length }};
+  {% else %}
+  const rExcellent=0, rGood=0, rPoor=0;
+  {% endif %}
+
+  /* ── Colour constants ── */
+  const C = {
+    green  :'#10b981', greenT :'rgba(16,185,129,.75)',
+    amber  :'#f59e0b', amberT :'rgba(245,158,11,.75)',
+    red    :'#ef4444', redT   :'rgba(239,68,68,.75)',
+    blue   :'#3b82f6', blueT  :'rgba(59,130,246,.75)',
+    indigo :'#6366f1', indigoT:'rgba(99,102,241,.75)',
+    purple :'#8b5cf6',
+    teal   :'#14b8a6',
+    orange :'#f97316',
+    gold   :'#D4A853',
+  };
+  /* Chart visualisation palette — ordered for visual distinction */
+  const PALETTE = [C.indigo, C.blue, C.teal, C.green, C.amber, C.red, C.orange, C.purple];
+
+  /* ── Global Chart defaults ── */
+  Chart.defaults.font.family  = "'DM Sans', sans-serif";
+  Chart.defaults.font.size    = 12;
+  Chart.defaults.plugins.legend.display = false;
+
+  /* shared tooltip style */
+  function tooltipStyle() {
+    return {
+      backgroundColor: isDark() ? '#1e2640' : '#ffffff',
+      borderColor    : isDark() ? 'rgba(255,255,255,.10)' : 'rgba(0,0,0,.10)',
+      borderWidth    : 1,
+      titleColor     : isDark() ? '#ffffff' : '#111111',
+      bodyColor      : themeText(),
+      padding        : 12,
+      cornerRadius   : 8,
+    };
+  }
+
+  /* ═══════════════════════════════════
+     1. HEALTH GAUGE (semicircle doughnut)
+  ═══════════════════════════════════ */
+  const gc = document.getElementById('healthGaugeChart');
+  if (gc) {
+    const gColor = healthScore >= 85 ? C.green
+                 : healthScore >= 70 ? C.blue
+                 : healthScore >= 50 ? C.amber
+                 : C.red;
+    new Chart(gc, {
+      type: 'doughnut',
+      data: { datasets: [{
+        data: [healthScore, 100 - healthScore, 100],
+        backgroundColor: [gColor, isDark() ? 'rgba(255,255,255,.08)' : 'rgba(0,0,0,.07)', 'transparent'],
+        borderWidth: 0,
+        borderRadius: [8, 0, 0],
+        circumference: 180,
+        rotation: -90,
+      }]},
+      options: {
+        responsive: true, maintainAspectRatio: false, cutout: '72%',
+        animation: { animateRotate: true, duration: 1400, easing: 'easeOutCubic' },
+        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      },
+    });
+  }
+
+  /* ═══════════════════════════════════
+     2. CASHFLOW COMBO (bar + line)
+  ═══════════════════════════════════ */
+  const cfC = document.getElementById('cashflowChart');
+  if (cfC) {
+    new Chart(cfC, {
+      type: 'bar',
+      data: {
+        labels: months,
+        datasets: [
+          { label:'Collected', data:incomeData, backgroundColor:C.greenT, borderColor:C.green, borderWidth:1.5, borderRadius:6, order:2 },
+          { label:'Expenses',  data:expData,    backgroundColor:C.amberT, borderColor:C.amber, borderWidth:1.5, borderRadius:6, order:2 },
+          {
+            label:'Net', data:netData, type:'line',
+            borderColor:C.gold,
+            backgroundColor:'rgba(212,168,83,.10)',
+            pointBackgroundColor: netData.map(v => v >= 0 ? C.green : C.red),
+            pointRadius:5, pointHoverRadius:7,
+            fill:true, tension:0.35, borderWidth:2.5, order:1,
+          },
+        ],
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        interaction: { mode:'index', intersect:false },
+        plugins: {
+          legend: {
+            display:true, position:'top', align:'end',
+            labels: { boxWidth:12, boxHeight:12, borderRadius:4, color:themeText(), usePointStyle:false },
+          },
+          tooltip: {
+            ...tooltipStyle(),
+            callbacks: { label: ctx => `  ${ctx.dataset.label}: ₹${ctx.parsed.y.toLocaleString('en-IN')}` },
+          },
+        },
+        scales: {
+          x: { grid:{ color:themeGrid() }, ticks:{ color:themeText() } },
+          y: { grid:{ color:themeGrid() }, beginAtZero:true,
+               ticks:{ color:themeText(), callback: v => '₹' + (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v) } },
+        },
+      },
+    });
+  }
+
+  /* ═══════════════════════════════════
+     3. EXPENSE CATEGORY DONUT
+  ═══════════════════════════════════ */
+  const ecC = document.getElementById('expenseCatChart');
+  if (ecC && expCatData.length) {
+    new Chart(ecC, {
+      type: 'doughnut',
+      data: {
+        labels: expCatLbls,
+        datasets:[{
+          data: expCatData,
+          backgroundColor: PALETTE.slice(0, expCatData.length),
+          borderColor: themeBg(), borderWidth:3, hoverOffset:10,
+        }],
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false, cutout:'62%',
+        plugins: {
+          legend: { display:false },
+          tooltip: {
+            ...tooltipStyle(),
+            callbacks: { label: ctx => {
+              const tot = expCatData.reduce((a, b) => a + b, 0);
+              return `  ₹${ctx.parsed.toLocaleString('en-IN')}  (${((ctx.parsed/tot)*100).toFixed(1)}%)`;
+            }},
+          },
+        },
+      },
+    });
+
+    /* Custom legend below donut */
+    const leg = document.getElementById('expLegend');
+    if (leg) {
+      const tot = expCatData.reduce((a, b) => a + b, 0);
+      expCatLbls.forEach((lbl, i) => {
+        const pct = tot > 0 ? ((expCatData[i] / tot) * 100).toFixed(1) : 0;
+        const el  = document.createElement('div');
+        el.style.cssText = 'display:flex;align-items:center;gap:5px;font-size:.73rem;color:var(--color-text-secondary);';
+        el.innerHTML     = `<span style="width:9px;height:9px;border-radius:3px;background:${PALETTE[i]};flex-shrink:0;"></span>${lbl} <b>${pct}%</b>`;
+        leg.appendChild(el);
+      });
+    }
+  }
+
+  /* ═══════════════════════════════════
+     4. COMPLAINT TREND LINE
+  ═══════════════════════════════════ */
+  const ctC = document.getElementById('complaintTrendChart');
+  if (ctC) {
+    new Chart(ctC, {
+      type: 'line',
+      data: {
+        labels: months,
+        datasets:[{
+          data: cmpMonthly,
+          borderColor:C.red, backgroundColor:'rgba(239,68,68,.12)',
+          fill:true, tension:0.35,
+          pointBackgroundColor:C.red, pointRadius:4, pointHoverRadius:6, borderWidth:2,
+        }],
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins: {
+          legend: { display:false },
+          tooltip: { ...tooltipStyle(), callbacks:{ label: ctx => `  ${ctx.parsed.y} complaint${ctx.parsed.y !== 1 ? 's' : ''}` } },
+        },
+        scales: {
+          x: { grid:{ display:false }, ticks:{ color:themeText(), font:{ size:10 } } },
+          y: { grid:{ color:themeGrid() }, beginAtZero:true, ticks:{ color:themeText(), stepSize:1, font:{ size:10 } } },
+        },
+      },
+    });
+  }
+
+  /* ═══════════════════════════════════
+     5. WORKS BUDGET — horizontal grouped bar
+  ═══════════════════════════════════ */
+  const wC = document.getElementById('worksChart');
+  if (wC && worksData.length) {
+    const wLabels = worksData.map(w => w.title);
+    const wEst    = worksData.map(w => w.estimated);
+    const wAct    = worksData.map(w => w.actual);
+    new Chart(wC, {
+      type: 'bar',
+      data: {
+        labels: wLabels,
+        datasets: [
+          { label:'Estimated', data:wEst, backgroundColor:C.blueT, borderColor:C.blue, borderWidth:1.5, borderRadius:4 },
+          {
+            label:'Actual', data:wAct,
+            backgroundColor: wAct.map((a, i) => a === 0 ? 'rgba(156,163,175,.30)' : a > wEst[i]*1.1 ? C.redT  : C.greenT),
+            borderColor:     wAct.map((a, i) => a === 0 ? 'rgba(156,163,175,.50)' : a > wEst[i]*1.1 ? C.red   : C.green),
+            borderWidth:1.5, borderRadius:4,
+          },
+        ],
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false, indexAxis:'y',
+        interaction:{ mode:'index', intersect:false },
+        plugins: {
+          legend: {
+            display:true, position:'top', align:'end',
+            labels:{ boxWidth:12, boxHeight:12, borderRadius:4, color:themeText() },
+          },
+          tooltip: {
+            ...tooltipStyle(),
+            callbacks: { label: ctx => {
+              const v = ctx.parsed.x;
+              if (v === 0 && ctx.datasetIndex === 1) return '  Actual: not recorded yet';
+              return `  ${ctx.dataset.label}: ₹${v.toLocaleString('en-IN')}`;
+            }},
+          },
+        },
+        scales: {
+          x: { grid:{ color:themeGrid() }, ticks:{ color:themeText(), callback: v => '₹' + (v >= 1000 ? (v/1000).toFixed(0) + 'k' : v) } },
+          y: { grid:{ display:false }, ticks:{ color:themeText(), font:{ size:12 } } },
+        },
+      },
+    });
+  }
+
+  /* ═══════════════════════════════════
+     6. PAYMENT COMPLIANCE DONUT
+  ═══════════════════════════════════ */
+  const ccC = document.getElementById('complianceChart');
+  if (ccC) {
+    new Chart(ccC, {
+      type: 'doughnut',
+      data: {
+        labels: ['Excellent (≥85%)', 'Good (60–84%)', 'Poor (<60%)'],
+        datasets:[{
+          data: [rExcellent, rGood, rPoor],
+          backgroundColor:[C.green, C.amber, C.red],
+          borderColor: themeBg(), borderWidth:4, hoverOffset:8,
+        }],
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false, cutout:'65%',
+        plugins: {
+          legend: {
+            display:true, position:'bottom',
+            labels:{ boxWidth:12, boxHeight:12, borderRadius:4, color:themeText(), font:{ size:11 }, padding:16 },
+          },
+          tooltip: {
+            ...tooltipStyle(),
+            callbacks: { label: ctx => `  ${ctx.label}: ${ctx.parsed} resident${ctx.parsed !== 1 ? 's' : ''}` },
+          },
+        },
+      },
+    });
+  }
+
+  /* ── Re-render all charts when theme toggles ── */
+  const themeToggleBtn = document.getElementById('aptThemeToggle');
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+      setTimeout(() => {
+        Object.values(Chart.instances || {}).forEach(chart => chart.update('none'));
+      }, 80);
+    });
+  }
+
+})();
+</script>
+
+{% endblock %}

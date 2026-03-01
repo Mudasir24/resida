@@ -1,0 +1,448 @@
+﻿{% extends "apartment_base.html" %}
+
+{% block title %}Analytics · {{ apartment.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ============================================================
+   RESIDENT ANALYTICS  --  design tokens
+============================================================ */
+:root {
+  --ra-green  : #10b981;
+  --ra-amber  : #f59e0b;
+  --ra-red    : #ef4444;
+  --ra-blue   : #3b82f6;
+  --ra-teal   : #14b8a6;
+  --ra-r      : 18px;
+  --ra-gap    : 22px;
+}
+
+/* ── Page shell ── */
+.ra-page { max-width:1300px; margin:0 auto; padding:40px 22px 80px; }
+.ra-page-title { font-size:clamp(1.4rem,3vw,2rem); font-weight:800; color:var(--color-text-primary); margin:0 0 4px; font-family:var(--font-display); }
+.ra-page-sub   { font-size:.88rem; color:var(--color-text-tertiary); margin:0 0 40px; }
+
+/* ── Section labels ── */
+.ra-section { margin-top:44px; }
+.ra-section-label { font-size:.68rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:var(--color-text-tertiary); display:flex; align-items:center; gap:8px; margin-bottom:18px; }
+.ra-section-label::after { content:''; flex:1; height:1px; background:var(--color-border-subtle); }
+[data-theme="dark"] .ra-section-label::after { background:rgba(255,255,255,.07); }
+
+/* ── Cards ── */
+.ra-card { background:var(--color-bg-surface,#fff); border:1px solid var(--color-border-subtle,#e5e7eb); border-radius:var(--ra-r); padding:26px; position:relative; overflow:hidden; transition:box-shadow .2s,transform .2s; }
+[data-theme="dark"] .ra-card { background:#161b2e; border-color:rgba(255,255,255,.08); }
+.ra-card:hover { box-shadow:0 8px 28px rgba(0,0,0,.09); transform:translateY(-2px); }
+[data-theme="dark"] .ra-card:hover { box-shadow:0 8px 28px rgba(0,0,0,.35); }
+/* BUG A fixed: default card top bar → Resida gold→taupe (was indigo→purple) */
+.ra-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--color-accent,#D4A853),#C4A882); }
+.ra-card.green::before { background:linear-gradient(90deg,var(--ra-green),var(--ra-teal)); }
+.ra-card.amber::before { background:linear-gradient(90deg,var(--ra-amber),#f97316); }
+.ra-card.red::before   { background:linear-gradient(90deg,var(--ra-red),#f97316); }
+.ra-card.blue::before  { background:linear-gradient(90deg,var(--ra-blue),var(--ra-teal)); }
+
+/* ── Grid layouts ── */
+.ra-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--ra-gap); }
+.ra-grid-2 { display:grid; grid-template-columns:repeat(2,1fr); gap:var(--ra-gap); }
+.ra-grid-21{ display:grid; grid-template-columns:2fr 1fr; gap:var(--ra-gap); }
+
+/* ── Standing card (personal) ── */
+.ra-standing { display:grid; grid-template-columns:auto 1fr; gap:28px; align-items:center; }
+.ra-score-ring-wrap { position:relative; width:140px; height:140px; flex-shrink:0; }
+.ra-score-ring-wrap canvas { position:absolute; top:0; left:0; }
+.ra-score-center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.ra-score-num  { font-size:2.2rem; font-weight:900; color:var(--color-text-primary); line-height:1; font-family:var(--font-display); }
+.ra-score-lbl  { font-size:.65rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--color-text-tertiary); margin-top:2px; }
+.ra-standing-right {}
+.ra-standing-name  { font-size:1.2rem; font-weight:700; color:var(--color-text-primary); margin-bottom:4px; }
+.ra-standing-sub   { font-size:.82rem; color:var(--color-text-secondary); margin-bottom:14px; }
+.ra-bill-pills { display:flex; flex-wrap:wrap; gap:8px; }
+.ra-pill { display:inline-flex; align-items:center; gap:5px; padding:5px 12px; border-radius:999px; font-size:.78rem; font-weight:700; }
+.ra-pill.green { background:rgba(16,185,129,.12); color:#059669; }
+.ra-pill.amber { background:rgba(245,158,11,.12); color:#d97706; }
+.ra-pill.red   { background:rgba(239,68,68,.12);  color:#dc2626; }
+[data-theme="dark"] .ra-pill.green { background:rgba(16,185,129,.22); color:#34d399; }
+[data-theme="dark"] .ra-pill.amber { background:rgba(245,158,11,.22); color:#fbbf24; }
+[data-theme="dark"] .ra-pill.red   { background:rgba(239,68,68,.22);  color:#fca5a5; }
+.ra-standing-advice { margin-top:14px; padding:10px 14px; border-radius:10px; font-size:.8rem; line-height:1.5; }
+.ra-standing-advice.good   { background:rgba(16,185,129,.08);  color:#059669; border-left:3px solid var(--ra-green); }
+.ra-standing-advice.ok     { background:rgba(245,158,11,.08);  color:#d97706; border-left:3px solid var(--ra-amber); }
+.ra-standing-advice.warn   { background:rgba(239,68,68,.08);   color:#dc2626; border-left:3px solid var(--ra-red);   }
+[data-theme="dark"] .ra-standing-advice.good { background:rgba(16,185,129,.12); color:#6ee7b7; }
+[data-theme="dark"] .ra-standing-advice.ok   { background:rgba(245,158,11,.12); color:#fcd34d; }
+[data-theme="dark"] .ra-standing-advice.warn { background:rgba(239,68,68,.12);  color:#fca5a5; }
+
+/* ── Payment Wall ── */
+.ra-wall-grid { display:flex; flex-wrap:wrap; gap:10px; }
+.ra-flat-tile { width:76px; border-radius:12px; padding:10px 6px 8px; text-align:center; cursor:default; transition:transform .15s,box-shadow .15s; position:relative; }
+.ra-flat-tile:hover { transform:scale(1.07); z-index:2; }
+.ra-flat-tile.paid    { background:rgba(16,185,129,.12); border:1.5px solid rgba(16,185,129,.3); }
+.ra-flat-tile.pending { background:rgba(245,158,11,.1);  border:1.5px solid rgba(245,158,11,.3); }
+.ra-flat-tile.overdue { background:rgba(239,68,68,.1);   border:1.5px solid rgba(239,68,68,.3);  }
+.ra-flat-tile.none    { background:var(--color-bg-subtle,#f3f4f6); border:1.5px solid var(--color-border-subtle); }
+[data-theme="dark"] .ra-flat-tile.paid    { background:rgba(16,185,129,.14); border-color:rgba(16,185,129,.35); }
+[data-theme="dark"] .ra-flat-tile.pending { background:rgba(245,158,11,.13); border-color:rgba(245,158,11,.3);  }
+[data-theme="dark"] .ra-flat-tile.overdue { background:rgba(239,68,68,.13);  border-color:rgba(239,68,68,.3);   }
+[data-theme="dark"] .ra-flat-tile.none    { background:rgba(255,255,255,.04); border-color:rgba(255,255,255,.1); }
+/* BUG B fixed: "Your tile" glow → gold, not purple */
+.ra-flat-tile.is-me { box-shadow:0 0 0 3px var(--color-accent,#D4A853); }
+.ra-flat-icon { font-size:1.2rem; margin-bottom:4px; display:block; }
+.ra-flat-num  { font-size:.72rem; font-weight:800; color:var(--color-text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ra-flat-name { font-size:.62rem; color:var(--color-text-tertiary); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ra-flat-score{ font-size:.62rem; font-weight:700; margin-top:3px; }
+.ra-flat-tile.paid    .ra-flat-score { color:#059669; }
+.ra-flat-tile.pending .ra-flat-score { color:#d97706; }
+.ra-flat-tile.overdue .ra-flat-score { color:#dc2626; }
+.ra-flat-tile.none    .ra-flat-score { color:var(--color-text-tertiary); }
+[data-theme="dark"] .ra-flat-tile.paid    .ra-flat-score { color:#34d399; }
+[data-theme="dark"] .ra-flat-tile.pending .ra-flat-score { color:#fbbf24; }
+[data-theme="dark"] .ra-flat-tile.overdue .ra-flat-score { color:#fca5a5; }
+.ra-wall-legend { display:flex; flex-wrap:wrap; gap:12px; margin-top:16px; }
+.ra-legend-dot { display:inline-flex; align-items:center; gap:5px; font-size:.74rem; color:var(--color-text-secondary); }
+.ra-legend-dot span { width:9px; height:9px; border-radius:3px; display:inline-block; }
+.ra-wall-summary { display:flex; gap:18px; flex-wrap:wrap; margin-top:16px; padding-top:16px; border-top:1px solid var(--color-border-subtle); }
+[data-theme="dark"] .ra-wall-summary { border-top-color:rgba(255,255,255,.07); }
+.ra-wall-stat { text-align:center; }
+.ra-wall-stat-num { font-size:1.3rem; font-weight:800; color:var(--color-text-primary); line-height:1; }
+.ra-wall-stat-lbl { font-size:.65rem; color:var(--color-text-tertiary); text-transform:uppercase; letter-spacing:.06em; margin-top:3px; }
+
+/* ── Chart wrappers ── */
+.ra-chart-title { font-size:.95rem; font-weight:700; color:var(--color-text-primary); margin:0 0 4px; }
+.ra-chart-sub   { font-size:.78rem; color:var(--color-text-tertiary); margin:0 0 18px; }
+.ra-chart-wrap  { position:relative; }
+.h280 { height:280px; } .h220 { height:220px; } .h160 { height:160px; }
+
+/* ── Expense legend ── */
+.ra-exp-legendwrap { display:flex; flex-wrap:wrap; gap:7px; margin-top:14px; }
+.ra-exp-litem { display:flex; align-items:center; gap:5px; font-size:.73rem; color:var(--color-text-secondary); }
+
+/* ── Works ── */
+.ra-work-item { padding:14px 0; border-bottom:1px solid var(--color-border-subtle); }
+[data-theme="dark"] .ra-work-item { border-bottom-color:rgba(255,255,255,.06); }
+.ra-work-item:last-child { border-bottom:none; padding-bottom:0; }
+.ra-work-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.ra-work-name  { font-weight:700; font-size:.87rem; color:var(--color-text-primary); }
+.ra-work-badge { font-size:.68rem; font-weight:700; padding:2px 8px; border-radius:999px; }
+.ra-work-badge.ongoing { background:rgba(245,158,11,.12); color:#d97706; }
+/* BUG D fixed: planned badge → blue, not purple */
+.ra-work-badge.planned { background:rgba(59,130,246,.10); color:#2563eb; }
+[data-theme="dark"] .ra-work-badge.ongoing { background:rgba(245,158,11,.2); color:#fbbf24; }
+/* BUG E fixed: planned dark mode → blue */
+[data-theme="dark"] .ra-work-badge.planned { background:rgba(59,130,246,.2); color:#93c5fd; }
+.ra-work-meta  { font-size:.73rem; color:var(--color-text-tertiary); margin-bottom:8px; }
+.ra-progress-bar-bg   { height:7px; background:var(--color-border-subtle); border-radius:99px; overflow:hidden; }
+[data-theme="dark"] .ra-progress-bar-bg { background:rgba(255,255,255,.09); }
+.ra-progress-bar-fill { height:100%; border-radius:99px; transition:width .8s cubic-bezier(.4,0,.2,1); }
+.ra-work-pct   { font-size:.7rem; font-weight:700; color:var(--color-text-secondary); margin-top:4px; text-align:right; }
+
+/* ── Complaint pulse ── */
+.ra-pulse-row   { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.ra-pulse-label { font-size:.8rem; font-weight:600; color:var(--color-text-secondary); min-width:86px; }
+.ra-pulse-bar-bg  { flex:1; height:10px; background:var(--color-border-subtle); border-radius:99px; overflow:hidden; }
+[data-theme="dark"] .ra-pulse-bar-bg { background:rgba(255,255,255,.09); }
+.ra-pulse-bar     { height:100%; border-radius:99px; transition:width .7s cubic-bezier(.4,0,.2,1); }
+.ra-pulse-count   { font-size:.8rem; font-weight:700; color:var(--color-text-primary); min-width:20px; text-align:right; }
+.ra-pulse-note    { font-size:.78rem; color:var(--color-text-secondary); margin-top:14px; line-height:1.55; padding:10px 13px; background:var(--color-bg-subtle,#f9fafb); border-radius:10px; }
+[data-theme="dark"] .ra-pulse-note { background:rgba(255,255,255,.04); }
+
+/* ── Animations ── */
+@keyframes raFadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+.ra-section { animation:raFadeUp .38s ease both; }
+.ra-section:nth-child(1) { animation-delay:.03s; }
+.ra-section:nth-child(2) { animation-delay:.07s; }
+.ra-section:nth-child(3) { animation-delay:.11s; }
+.ra-section:nth-child(4) { animation-delay:.15s; }
+.ra-section:nth-child(5) { animation-delay:.19s; }
+
+/* ── Responsive ── */
+@media (max-width:1050px) { .ra-grid-21 { grid-template-columns:1fr; } }
+@media (max-width:720px)  { .ra-grid-3,.ra-grid-2 { grid-template-columns:1fr; } .ra-page { padding:24px 14px 60px; } .ra-standing { grid-template-columns:1fr; text-align:center; } .ra-score-ring-wrap { margin:0 auto; } .ra-bill-pills { justify-content:center; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ra-page">
+
+  <h1 class="ra-page-title">📊 Community Insights</h1>
+  <p class="ra-page-sub">Transparent data about <strong>{{ apartment.name }}</strong> — your home, your community</p>
+
+  <!-- ════════════════════════════════════
+       SECTION 1: YOUR STANDING
+  ════════════════════════════════════ -->
+  <div class="ra-section">
+    <div class="ra-section-label">🎯 Your Standing</div>
+    <div class="ra-card {% if my_bills.score >= 85 %}green{% elif my_bills.score >= 60 %}amber{% else %}red{% endif %}">
+      <div class="ra-standing">
+        <!-- Score ring -->
+        <div class="ra-score-ring-wrap">
+          <canvas id="myScoreRing" width="140" height="140"></canvas>
+          <div class="ra-score-center">
+            <div class="ra-score-num">{{ my_bills.score }}</div>
+            <div class="ra-score-lbl">Score</div>
+          </div>
+        </div>
+        <!-- Right side -->
+        <div class="ra-standing-right">
+          <div class="ra-standing-name">Hi, {{ session.get('apartment_' + apartment.slug + '_full_name', username) }} 👋</div>
+          <div class="ra-standing-sub">Your payment compliance across {{ my_bills.total }} bill{{ 's' if my_bills.total != 1 else '' }}</div>
+          <div class="ra-bill-pills">
+            <span class="ra-pill green">✅ {{ my_bills.paid }} Paid</span>
+            {% if my_bills.pending > 0 %}<span class="ra-pill amber">⏳ {{ my_bills.pending }} Pending{% if my_bills.pending_amt > 0 %} · ₹{{ "%.0f"|format(my_bills.pending_amt) }}{% endif %}</span>{% endif %}
+            {% if my_bills.overdue > 0 %}<span class="ra-pill red">🔴 {{ my_bills.overdue }} Overdue</span>{% endif %}
+          </div>
+          <div class="ra-standing-advice {% if my_bills.score >= 85 %}good{% elif my_bills.score >= 60 %}ok{% else %}warn{% endif %}">
+            {% if my_bills.score >= 85 %}🌟 Excellent! You're one of the most reliable residents. The community thanks you.
+            {% elif my_bills.score >= 60 %}⚡ Good progress. Clearing your pending bills soon will boost your score to green.
+            {% else %}⚠️ Your payment score is low. Prompt payments strengthen the community fund for everyone.
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════
+       SECTION 2: COMMUNITY PAYMENT WALL
+  ════════════════════════════════════ -->
+  <div class="ra-section">
+    <div class="ra-section-label">🏘️ Community Payment Wall</div>
+    <div class="ra-card">
+      <div class="ra-chart-title">Who's Paid This Cycle?</div>
+      <div class="ra-chart-sub">Flat-by-flat payment compliance · Your tile has a gold glow · Amounts are private</div>
+
+      {% set paid_count    = payment_wall | selectattr('status', 'equalto', 'paid')    | list | length %}
+      {% set pending_count = payment_wall | selectattr('status', 'equalto', 'pending') | list | length %}
+      {% set overdue_count = payment_wall | selectattr('status', 'equalto', 'overdue') | list | length %}
+      {% set total_residents = payment_wall | length %}
+      {% set collection_pct = ((paid_count / total_residents * 100)|round|int) if total_residents > 0 else 0 %}
+
+      <div class="ra-wall-grid" style="margin-top:18px;">
+        {% for r in payment_wall %}
+        <div class="ra-flat-tile {{ r.status }}{% if r.is_me %} is-me{% endif %}" title="Flat {{ r.flat }} · {{ r.status | capitalize }}{% if r.is_me %} (You){% endif %}">
+          <span class="ra-flat-icon">{% if r.status == 'paid' %}✅{% elif r.status == 'overdue' %}🔴{% elif r.status == 'pending' %}⏳{% else %}➖{% endif %}</span>
+          <div class="ra-flat-num">{{ r.flat }}{% if r.is_me %} ★{% endif %}</div>
+          <div class="ra-flat-name">{{ r.first_name }}</div>
+          <div class="ra-flat-score">{{ r.score }}%</div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="ra-wall-summary">
+        <div class="ra-wall-stat"><div class="ra-wall-stat-num" style="color:var(--ra-green);">{{ paid_count }}</div><div class="ra-wall-stat-lbl">Paid</div></div>
+        <div class="ra-wall-stat"><div class="ra-wall-stat-num" style="color:var(--ra-amber);">{{ pending_count }}</div><div class="ra-wall-stat-lbl">Pending</div></div>
+        <div class="ra-wall-stat"><div class="ra-wall-stat-num" style="color:var(--ra-red);">{{ overdue_count }}</div><div class="ra-wall-stat-lbl">Overdue</div></div>
+        <div class="ra-wall-stat"><div class="ra-wall-stat-num">{{ collection_pct }}%</div><div class="ra-wall-stat-lbl">Collection Rate</div></div>
+        <div class="ra-wall-stat"><div class="ra-wall-stat-num">{{ total_residents }}</div><div class="ra-wall-stat-lbl">Residents</div></div>
+      </div>
+
+      <div class="ra-wall-legend">
+        <div class="ra-legend-dot"><span style="background:var(--ra-green);"></span> Paid</div>
+        <div class="ra-legend-dot"><span style="background:var(--ra-amber);"></span> Pending</div>
+        <div class="ra-legend-dot"><span style="background:var(--ra-red);"></span> Overdue</div>
+        <div class="ra-legend-dot"><span style="background:var(--color-border-subtle);"></span> No bills</div>
+        <div class="ra-legend-dot" style="font-style:italic;">★ = You &nbsp;|&nbsp; Gold glow = Your tile</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════
+       SECTION 3: WHERE YOUR MONEY GOES
+  ════════════════════════════════════ -->
+  <div class="ra-section">
+    <div class="ra-section-label">💸 Where Your Money Goes</div>
+    <div class="ra-grid-21">
+
+      <div class="ra-card amber">
+        <div class="ra-chart-title">Community Expenses by Category</div>
+        <div class="ra-chart-sub">Last 3 months · Total ₹{{ "%.0f"|format(expense_total_3m) }}</div>
+        {% if expense_cats %}
+          <div class="ra-chart-wrap h220"><canvas id="expCatChart"></canvas></div>
+          <div class="ra-exp-legendwrap" id="expLegendWrap"></div>
+        {% else %}
+          <div style="text-align:center;padding:40px 0;color:var(--color-text-tertiary);">No expense data yet</div>
+        {% endif %}
+      </div>
+
+      <div class="ra-card blue">
+        <div class="ra-chart-title">Monthly Collections</div>
+        <div class="ra-chart-sub">6-month trend — total bills paid by community</div>
+        <div class="ra-chart-wrap h220"><canvas id="incomeChart"></canvas></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════
+       SECTION 4: ACTIVE WORKS
+  ════════════════════════════════════ -->
+  {% if active_works %}
+  <div class="ra-section">
+    <div class="ra-section-label">🔧 Active Works</div>
+    <div class="ra-card green">
+      <div class="ra-chart-title">What's Being Fixed & Built</div>
+      <div class="ra-chart-sub">Ongoing and planned works with checkpoint progress</div>
+      <div style="margin-top:16px;">
+        {% for w in active_works %}
+        <div class="ra-work-item">
+          <div class="ra-work-header">
+            <div class="ra-work-name">{{ w.title }}</div>
+            <span class="ra-work-badge {{ w.status }}">{{ w.status | capitalize }}</span>
+          </div>
+          <div class="ra-work-meta">
+            {% if w.checkpoints_total > 0 %}{{ w.checkpoints_done }}/{{ w.checkpoints_total }} checkpoints{% else %}No checkpoints logged{% endif %}
+            {% if w.start_date %} · Started {{ w.start_date }}{% endif %}
+            {% if w.end_date %} · Due {{ w.end_date }}{% endif %}
+          </div>
+          <div class="ra-progress-bar-bg">
+            <div class="ra-progress-bar-fill" style="width:{{ w.progress }}%; background:{% if w.progress == 100 %}var(--ra-green){% elif w.status == 'ongoing' %}var(--ra-amber){% else %}var(--ra-blue){% endif %};"></div>
+          </div>
+          <div class="ra-work-pct">{{ w.progress }}% complete</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ════════════════════════════════════
+       SECTION 5: COMMUNITY PULSE
+  ════════════════════════════════════ -->
+  <div class="ra-section">
+    <div class="ra-section-label">💬 Community Pulse</div>
+    <div class="ra-card">
+      <div class="ra-chart-title">Complaint Pipeline</div>
+      <div class="ra-chart-sub">Community issues — submitted, handled, resolved</div>
+      {% set ctotal = complaint_summary.total if complaint_summary.total > 0 else 1 %}
+      <div style="margin-top:18px;">
+        <div class="ra-pulse-row">
+          <div class="ra-pulse-label">🔴 Open</div>
+          <div class="ra-pulse-bar-bg"><div class="ra-pulse-bar" style="width:{{ (complaint_summary.open / ctotal * 100)|round|int }}%; background:var(--ra-red);"></div></div>
+          <div class="ra-pulse-count">{{ complaint_summary.open }}</div>
+        </div>
+        <div class="ra-pulse-row">
+          <div class="ra-pulse-label">🟡 In Progress</div>
+          <div class="ra-pulse-bar-bg"><div class="ra-pulse-bar" style="width:{{ (complaint_summary.in_progress / ctotal * 100)|round|int }}%; background:var(--ra-amber);"></div></div>
+          <div class="ra-pulse-count">{{ complaint_summary.in_progress }}</div>
+        </div>
+        <div class="ra-pulse-row">
+          <div class="ra-pulse-label">🟢 Resolved</div>
+          <div class="ra-pulse-bar-bg"><div class="ra-pulse-bar" style="width:{{ (complaint_summary.resolved / ctotal * 100)|round|int }}%; background:var(--ra-green);"></div></div>
+          <div class="ra-pulse-count">{{ complaint_summary.resolved }}</div>
+        </div>
+      </div>
+      <div class="ra-pulse-note">
+        {% if complaint_summary.total == 0 %}✨ No complaints yet — the community is in great shape!
+        {% elif complaint_summary.open == 0 and complaint_summary.in_progress == 0 %}✅ All {{ complaint_summary.resolved }} complaints resolved. Management is keeping up well.
+        {% elif complaint_summary.open > 5 %}⚠️ {{ complaint_summary.open }} complaints are open and waiting. Consider raising awareness so admin prioritizes resolution.
+        {% else %}📋 {{ complaint_summary.resolved }} resolved out of {{ complaint_summary.total }} total. {{ complaint_summary.in_progress }} being actively worked on.
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+  'use strict';
+  function isDark(){ return document.documentElement.getAttribute('data-theme')==='dark'; }
+  function themeText(){ return isDark()?'rgba(255,255,255,.65)':'rgba(0,0,0,.55)'; }
+  function themeGrid(){ return isDark()?'rgba(255,255,255,.07)':'rgba(0,0,0,.06)'; }
+  function themeBg()  { return isDark()?'#161b2e':'#ffffff'; }
+
+  const myScore   = {{ my_bills.score }};
+  const months    = {{ months_list | tojson }};
+  const income    = {{ monthly_income | tojson }};
+  const expLbls   = {{ expense_cats | map(attribute='label') | list | tojson }};
+  const expAmts   = {{ expense_cats | map(attribute='amount') | list | tojson }};
+
+  /* BUG F fixed: PALETTE starts with gold + teal, purple appears only as 8th entry */
+  const PALETTE = ['#D4A853','#14b8a6','#3b82f6','#10b981','#f59e0b','#ef4444','#f97316','#8b5cf6'];
+
+  Chart.defaults.font.family = "'DM Sans',sans-serif";
+
+  /* 1. Personal score ring */
+  const src = document.getElementById('myScoreRing');
+  if(src){
+    const sColor = myScore>=85?'#10b981':myScore>=60?'#f59e0b':'#ef4444';
+    new Chart(src,{
+      type:'doughnut',
+      data:{datasets:[{
+        data:[myScore,100-myScore],
+        backgroundColor:[sColor, isDark()?'rgba(255,255,255,.08)':'rgba(0,0,0,.06)'],
+        borderWidth:0, borderRadius:[8,0], cutout:'76%'
+      }]},
+      options:{responsive:false, plugins:{legend:{display:false},tooltip:{enabled:false}},
+        animation:{animateRotate:true,duration:1000,easing:'easeOutCubic'}}
+    });
+  }
+
+  /* 2. Expense category donut */
+  const ecc = document.getElementById('expCatChart');
+  if(ecc && expAmts.length){
+    new Chart(ecc,{
+      type:'doughnut',
+      data:{labels:expLbls,datasets:[{
+        data:expAmts,
+        backgroundColor:PALETTE.slice(0,expAmts.length),
+        borderColor:themeBg(), borderWidth:3, hoverOffset:10
+      }]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
+        plugins:{
+          legend:{display:false},
+          tooltip:{backgroundColor:isDark()?'#1e2235':'#fff',
+            borderColor:isDark()?'rgba(255,255,255,.1)':'rgba(0,0,0,.1)',borderWidth:1,
+            titleColor:isDark()?'#fff':'#111',bodyColor:themeText(),padding:12,
+            callbacks:{label:ctx=>{
+              const tot=expAmts.reduce((a,b)=>a+b,0);
+              return `  ₹${ctx.parsed.toLocaleString('en-IN')}  (${((ctx.parsed/tot)*100).toFixed(1)}%)`;
+            }}}
+        }
+      }
+    });
+    /* Legend */
+    const lw = document.getElementById('expLegendWrap');
+    if(lw){
+      const tot = expAmts.reduce((a,b)=>a+b,0);
+      expLbls.forEach((lbl,i)=>{
+        const pct = tot>0?((expAmts[i]/tot)*100).toFixed(0):0;
+        const el = document.createElement('div');
+        el.className = 'ra-exp-litem';
+        el.innerHTML = `<span style="width:9px;height:9px;border-radius:3px;background:${PALETTE[i]};flex-shrink:0;display:inline-block;"></span>${lbl} <b>${pct}%</b>`;
+        lw.appendChild(el);
+      });
+    }
+  }
+
+  /* 3. Monthly collections bar chart — BUG C fixed: gold bars, not purple */
+  const ic = document.getElementById('incomeChart');
+  if(ic){
+    new Chart(ic,{
+      type:'bar',
+      data:{labels:months,datasets:[{
+        label:'Collected',data:income,
+        backgroundColor:income.map(v=>v>0?'rgba(212,168,83,.80)':'rgba(156,163,175,.3)'),
+        borderColor:income.map(v=>v>0?'#D4A853':'#9ca3af'),
+        borderWidth:1.5, borderRadius:6
+      }]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},
+          tooltip:{backgroundColor:isDark()?'#1e2235':'#fff',
+            borderColor:isDark()?'rgba(255,255,255,.1)':'rgba(0,0,0,.1)',borderWidth:1,
+            titleColor:isDark()?'#fff':'#111',bodyColor:themeText(),padding:12,
+            callbacks:{label:ctx=>`  ₹${ctx.parsed.y.toLocaleString('en-IN')}`}}},
+        scales:{
+          x:{grid:{display:false},ticks:{color:themeText()}},
+          y:{grid:{color:themeGrid()},beginAtZero:true,
+            ticks:{color:themeText(),callback:v=>'\u20b9'+(v>=1000?(v/1000).toFixed(0)+'k':v)}}
+        }
+      }
+    });
+  }
+
+  /* Re-render on theme toggle */
+  const tt = document.getElementById('aptThemeToggle');
+  if(tt) tt.addEventListener('click',()=>setTimeout(()=>Object.values(Chart.instances||{}).forEach(c=>c.update('none')),60));
+})();
+</script>
+{% endblock %}

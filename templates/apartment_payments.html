@@ -1,0 +1,695 @@
+{% extends "apartment_base.html" %}
+
+{% block title %}Payments — {{ apartment.name }}{% endblock %}
+
+{% block content %}
+<style>
+/* ════════════════════════════════════════════════
+   RESIDENT PAYMENTS — Resida Design System
+   All tokens from var(--color-*), var(--font-*),
+   var(--space-*), var(--radius-*), var(--shadow-*)
+════════════════════════════════════════════════ */
+
+/* ── Payment card left-border status system
+   Matches complaints/works/expenses pattern ── */
+.payment-card {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-left: 3px solid var(--payment-status-color, var(--color-accent));
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  transition: box-shadow var(--ease-fast), transform var(--ease-fast);
+  position: relative;
+}
+.payment-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.payment-card.status-pending          { --payment-status-color: #f59e0b; }
+.payment-card.status-paid             { --payment-status-color: #10b981; }
+.payment-card.status-pending-approval { --payment-status-color: #3b82f6; }
+
+/* ── Status badges ── */
+.pay-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.pay-badge.pending   { background: rgba(245,158,11,.10); border: 1px solid rgba(245,158,11,.25); color: #d97706; }
+.pay-badge.paid      { background: rgba(16,185,129,.10);  border: 1px solid rgba(16,185,129,.25); color: #059669; }
+.pay-badge.approval  { background: rgba(59,130,246,.10);  border: 1px solid rgba(59,130,246,.25); color: #2563eb; }
+
+/* ── Filter chips — same pattern as other pages ── */
+.pay-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 7px var(--space-4);
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-full);
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--ease-fast);
+  white-space: nowrap;
+}
+.pay-filter-chip.active,
+.pay-filter-chip:hover {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+.pay-filter-chip .chip-count {
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  font-size: .65rem;
+  background: rgba(255,255,255,.25);
+}
+.pay-filter-chip:not(.active) .chip-count {
+  background: var(--color-bg-subtle);
+  color: var(--color-text-tertiary);
+}
+
+/* ── Payment modal ── */
+.pay-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  backdrop-filter: blur(6px);
+  z-index: 1040;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--page-padding);
+  padding-top: max(var(--space-8), 4vh);
+  overflow-y: auto;
+}
+.pay-modal-overlay.open { display: flex; }
+
+.pay-modal {
+  background: var(--color-bg-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-2xl);
+  width: 100%;
+  max-width: 560px;
+  box-shadow: var(--shadow-2xl);
+  animation: payFadeUp .25s cubic-bezier(.25,.46,.45,.94) both;
+  margin-bottom: var(--space-8);
+}
+.pay-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--space-6) var(--space-8);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-subtle);
+  border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.pay-modal-body   { padding: var(--space-7) var(--space-8); }
+.pay-modal-footer {
+  padding: var(--space-5) var(--space-8) var(--space-7);
+  border-top: 1px solid var(--color-border-subtle);
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+}
+
+/* ── Payment method option cards ── */
+.pay-method-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: var(--color-bg-subtle);
+  border: 1.5px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--ease-fast);
+  margin-bottom: var(--space-3);
+}
+.pay-method-option:hover,
+.pay-method-option.selected {
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+.pay-method-option.selected { box-shadow: 0 0 0 3px var(--color-accent-subtle); }
+.pay-method-icon { font-size: 1.8rem; flex-shrink: 0; }
+.pay-method-title { font-weight: 700; font-size: var(--text-sm); color: var(--color-text-primary); margin-bottom: 3px; }
+.pay-method-desc  { font-size: var(--text-xs); color: var(--color-text-secondary); line-height: 1.5; }
+
+/* ── Upload zone ── */
+.upload-zone {
+  display: none;
+  margin-top: var(--space-4);
+  padding: var(--space-6);
+  border: 1.5px dashed var(--color-border-default);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  background: var(--color-bg-subtle);
+  transition: border-color var(--ease-fast), background var(--ease-fast);
+  cursor: pointer;
+}
+.upload-zone.visible { display: block; }
+.upload-zone:hover,
+.upload-zone.drag-over {
+  border-color: var(--color-accent);
+  background: var(--color-accent-subtle);
+}
+.upload-preview { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-3); justify-content: center; }
+.upload-preview img { width: 72px; height: 72px; object-fit: cover; border-radius: var(--radius-md); border: 1px solid var(--color-border-subtle); }
+
+/* ── History table ── */
+.pay-table { width: 100%; border-collapse: collapse; }
+.pay-table th {
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--color-text-tertiary);
+  border-bottom: 1px solid var(--color-border-default);
+  white-space: nowrap;
+}
+.pay-table td {
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border-subtle);
+  vertical-align: middle;
+}
+.pay-table td:first-child { color: var(--color-text-primary); font-weight: 600; }
+.pay-table tr:last-child td { border-bottom: none; }
+.pay-table tr:hover td { background: var(--color-bg-subtle); }
+
+/* ── Toast ── */
+.pay-toast {
+  position: fixed;
+  bottom: var(--space-8);
+  right: var(--space-8);
+  background: var(--color-bg-surface);
+  border: 1px solid rgba(16,185,129,.30);
+  border-left: 3px solid #10b981;
+  border-radius: var(--radius-lg);
+  padding: var(--space-4) var(--space-5);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-lg);
+  z-index: 9999;
+  animation: payFadeUp .3s ease both;
+}
+
+@keyframes payFadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── Responsive ── */
+@media (max-width: 560px) {
+  #paymentsGrid { grid-template-columns: 1fr !important; }
+  .pay-table th:nth-child(3),
+  .pay-table td:nth-child(3) { display: none; } /* hide Due Date on mobile */
+}
+</style>
+
+
+<!-- ══════════════════════════════════
+     PAGE HEADER
+══════════════════════════════════ -->
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-6);flex-wrap:wrap;margin-bottom:var(--space-8);">
+  <div>
+    <p style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">{{ apartment.name }}</p>
+    <h1 style="font-family:var(--font-display);font-size:var(--text-4xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-.03em;line-height:1.1;margin-bottom:var(--space-2);">My Payments</h1>
+    <p style="font-size:var(--text-base);color:var(--color-text-secondary);">View and pay your outstanding bills for Flat {{ current_resident.flat_number }}.</p>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     STAT STRIP  (4 cards)
+     FIX 1: Resida surface tokens, no dark gradient
+     FIX 4: Amount in display font, no purple gradient
+══════════════════════════════════ -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--space-3);margin-bottom:var(--space-8);">
+
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-left:3px solid #ef4444;border-radius:var(--radius-xl);padding:var(--space-5);min-width:0;">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Total Due</div>
+    <div style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:700;color:var(--color-text-primary);line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">₹{{ "{:,.0f}".format(total_pending + total_overdue) }}</div>
+  </div>
+
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-left:3px solid #10b981;border-radius:var(--radius-xl);padding:var(--space-5);min-width:0;">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Total Paid</div>
+    <div style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:700;color:#059669;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">₹{{ "{:,.0f}".format(total_paid) }}</div>
+  </div>
+
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-left:3px solid #f59e0b;border-radius:var(--radius-xl);padding:var(--space-5);min-width:0;">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Pending Bills</div>
+    <div style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:700;color:#d97706;line-height:1.1;">{{ active_bills|length }}</div>
+  </div>
+
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-left:3px solid #10b981;border-radius:var(--radius-xl);padding:var(--space-5);min-width:0;">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Bills Paid</div>
+    <div style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:700;color:var(--color-text-primary);line-height:1.1;">{{ payment_history|length }}</div>
+  </div>
+
+</div>
+
+
+<!-- ══════════════════════════════════
+     FILTER CHIPS
+     FIX 2: Resida chip pattern with count badges
+     FIX 13: event passed as parameter
+     FIX 16: pending-approval as separate status
+══════════════════════════════════ -->
+{% set pending_count  = active_bills | length %}
+{% set paid_count     = payment_history | selectattr('confirmed') | list | length %}
+{% set approval_count = payment_history | rejectattr('confirmed') | list | length %}
+{% set all_count      = pending_count + payment_history | length %}
+
+<div style="display:flex;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-6);" id="filterChips">
+  <button class="pay-filter-chip active" data-filter="all"      onclick="filterPayments('all',this)">All <span class="chip-count">{{ all_count }}</span></button>
+  <button class="pay-filter-chip"        data-filter="pending"  onclick="filterPayments('pending',this)">Pending <span class="chip-count">{{ pending_count }}</span></button>
+  <button class="pay-filter-chip"        data-filter="paid"     onclick="filterPayments('paid',this)">Confirmed <span class="chip-count">{{ paid_count }}</span></button>
+  <button class="pay-filter-chip"        data-filter="pending-approval" onclick="filterPayments('pending-approval',this)">Awaiting Approval <span class="chip-count">{{ approval_count }}</span></button>
+</div>
+
+
+<!-- ══════════════════════════════════
+     PAYMENT CARDS GRID
+     FIX 3+5: Resida surface + gold btn
+     FIX 16: correct data-status values
+══════════════════════════════════ -->
+{% set total_cards = active_bills|length + payment_history|length %}
+
+{% if total_cards == 0 %}
+<!-- Empty state -->
+<div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-2xl);padding:var(--space-20) var(--space-8);text-align:center;">
+  <div style="font-size:3.5rem;opacity:.22;margin-bottom:var(--space-5);">💳</div>
+  <h2 style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-3);letter-spacing:-.02em;">No payments yet</h2>
+  <p style="font-size:var(--text-base);color:var(--color-text-secondary);max-width:340px;margin:0 auto;line-height:1.6;">You don't have any active or past bills at the moment.</p>
+</div>
+
+{% else %}
+
+<!-- Per-filter empty state -->
+<div id="filterEmpty" style="display:none;text-align:center;padding:var(--space-12) var(--space-8);">
+  <div style="font-size:2.5rem;opacity:.22;margin-bottom:var(--space-3);">🔍</div>
+  <p style="font-size:var(--text-sm);color:var(--color-text-tertiary);">No bills in this category.</p>
+</div>
+
+<div id="paymentsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:var(--space-5);margin-bottom:var(--space-10);">
+
+  <!-- ── Active / Pending bills ── -->
+  {% for bill in active_bills %}
+  <div class="payment-card status-pending" data-status="pending" data-bill-id="{{ bill.id }}">
+
+    <!-- Header: title + amount -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-3);margin-bottom:var(--space-3);">
+      <div style="min-width:0;">
+        <div style="font-family:var(--font-display);font-size:var(--text-lg);font-weight:700;color:var(--color-text-primary);line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:4px;">{{ bill.title }}</div>
+        <div style="font-size:var(--text-xs);color:var(--color-text-tertiary);font-weight:500;">📋 Bill</div>
+      </div>
+      <!-- Amount — FIX 4: display font, no purple gradient -->
+      <div style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:800;color:var(--color-text-primary);letter-spacing:-.02em;flex-shrink:0;line-height:1;">₹{{ "{:,.0f}".format(bill.amount) }}</div>
+    </div>
+
+    <!-- Status badge -->
+    <div style="margin-bottom:var(--space-4);">
+      {% if bill.status == 'overdue' %}
+      <span class="pay-badge pending" style="border-color:rgba(239,68,68,.3);color:#dc2626;background:rgba(239,68,68,.09);">⚠ Overdue</span>
+      {% else %}
+      <span class="pay-badge pending">⏳ Pending</span>
+      {% endif %}
+    </div>
+
+    <!-- Meta row -->
+    <div style="background:var(--color-bg-subtle);border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);margin-bottom:var(--space-4);display:flex;flex-wrap:wrap;gap:var(--space-4);">
+      <span style="font-size:var(--text-xs);color:var(--color-text-secondary);font-weight:500;">📅 Due: <strong style="color:var(--color-text-primary);">{{ bill.due_date or 'N/A' }}</strong></span>
+      {% if bill.frequency %}
+      <span style="font-size:var(--text-xs);color:var(--color-text-secondary);font-weight:500;">🔁 {{ bill.frequency | capitalize }}</span>
+      {% endif %}
+    </div>
+
+    <!-- Description -->
+    {% if bill.description %}
+    <div style="font-size:var(--text-xs);color:var(--color-text-secondary);line-height:1.6;padding:var(--space-3) var(--space-4);background:var(--color-accent-subtle);border:1px solid var(--color-accent-border);border-radius:var(--radius-md);margin-bottom:var(--space-4);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ bill.description }}</div>
+    {% endif %}
+
+    <!-- Action: Pay Now -->
+    <!-- FIX 5: uses global .btn.btn-primary class (gold) not hardcoded purple -->
+    <button class="btn btn-primary btn-block" type="button" onclick="openPayModal({{ bill.id }}, {{ bill.amount }}, '{{ bill.title | replace("'","") }}')">
+      💳 Pay Now
+    </button>
+
+  </div>
+  {% endfor %}
+
+
+  <!-- ── Payment history cards ── -->
+  {% for bill in payment_history %}
+  {# FIX 16: correct data-status per confirmation state #}
+  <div class="payment-card {% if bill.confirmed %}status-paid{% else %}status-pending-approval{% endif %}"
+       data-status="{% if bill.confirmed %}paid{% else %}pending-approval{% endif %}"
+       data-bill-id="{{ bill.id }}">
+
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-3);margin-bottom:var(--space-3);">
+      <div style="min-width:0;">
+        <div style="font-family:var(--font-display);font-size:var(--text-lg);font-weight:700;color:var(--color-text-primary);line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:4px;">{{ bill.title }}</div>
+        <div style="font-size:var(--text-xs);color:var(--color-text-tertiary);font-weight:500;">{% if bill.confirmed %}✓ Paid & Confirmed{% else %}⏳ Awaiting Confirmation{% endif %}</div>
+      </div>
+      <div style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:800;color:var(--color-text-primary);letter-spacing:-.02em;flex-shrink:0;line-height:1;">₹{{ "{:,.0f}".format(bill.amount) }}</div>
+    </div>
+
+    <!-- Status badge -->
+    <div style="margin-bottom:var(--space-4);">
+      {% if bill.confirmed %}
+      <span class="pay-badge paid">✓ Confirmed</span>
+      {% else %}
+      <span class="pay-badge approval">🔄 Awaiting Confirmation</span>
+      {% endif %}
+    </div>
+
+    <!-- Meta -->
+    <div style="background:var(--color-bg-subtle);border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);margin-bottom:var(--space-4);display:flex;flex-wrap:wrap;gap:var(--space-4);">
+      <span style="font-size:var(--text-xs);color:var(--color-text-secondary);font-weight:500;">📅 Due: <strong style="color:var(--color-text-primary);">{{ bill.due_date or 'N/A' }}</strong></span>
+      {% if bill.paid_at %}
+      <span style="font-size:var(--text-xs);color:var(--color-text-secondary);font-weight:500;">✓ Paid: <strong style="color:var(--color-text-primary);">{{ bill.paid_at }}</strong></span>
+      {% endif %}
+    </div>
+
+    <!-- Receipt link -->
+    {% if bill.proof_url %}
+    <a href="{{ bill.proof_url }}" target="_blank"
+       style="display:inline-flex;align-items:center;gap:var(--space-2);padding:7px var(--space-4);background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-sm);font-size:var(--text-xs);font-weight:600;color:var(--color-text-secondary);text-decoration:none;transition:all var(--ease-fast);"
+       onmouseover="this.style.borderColor='var(--color-accent-border)';this.style.color='var(--color-accent)'"
+       onmouseout="this.style.borderColor='';this.style.color=''">
+       📎 View Proof
+    </a>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+</div><!-- /paymentsGrid -->
+
+{% endif %}
+
+
+<!-- ══════════════════════════════════
+     PAYMENT HISTORY TABLE
+     FIX 9: Resida border tokens
+     FIX 17: var(--font-display) on heading
+══════════════════════════════════ -->
+{% if payment_history %}
+<div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-2xl);padding:var(--space-7) var(--space-7) var(--space-6);margin-top:var(--space-4);">
+  <h2 style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-.01em;margin-bottom:var(--space-5);">Payment History</h2>
+  <div style="overflow-x:auto;">
+    <table class="pay-table">
+      <thead>
+        <tr>
+          <th>Bill Title</th>
+          <th>Amount</th>
+          <th>Due Date</th>
+          <th>Paid On</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for bill in payment_history %}
+        <tr>
+          <td>{{ bill.title }}</td>
+          <td style="font-family:var(--font-display);font-weight:700;color:var(--color-text-primary);">₹{{ "{:,.2f}".format(bill.amount) }}</td>
+          <td>{{ bill.due_date or '—' }}</td>
+          <td>{{ bill.paid_at or '—' }}</td>
+          <td>
+            {% if bill.confirmed %}
+            <span class="pay-badge paid">✓ Confirmed</span>
+            {% else %}
+            <span class="pay-badge approval">🔄 Pending</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+
+<!-- ══════════════════════════════════
+     PAYMENT MODAL
+     FIX 6: Resida surface tokens (not dark)
+     FIX 8: gold upload zone / upload btn
+     FIX 12: flex-start overlay
+     FIX 15: modal footer buttons flex:0
+══════════════════════════════════ -->
+<div class="pay-modal-overlay" id="payModal" onclick="if(event.target.id==='payModal')closePayModal()">
+  <div class="pay-modal">
+
+    <!-- Sticky header -->
+    <div class="pay-modal-header">
+      <div style="flex:1;min-width:0;">
+        <h2 id="payModalTitle" style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-.02em;margin:0 0 4px;">Complete Payment</h2>
+        <p style="font-size:var(--text-sm);color:var(--color-text-tertiary);margin:0;">Choose how you'd like to pay</p>
+        <!-- Amount — FIX 4: gold, display font -->
+        <div id="payModalAmount" style="font-family:var(--font-display);font-size:var(--text-3xl);font-weight:800;color:var(--color-accent);letter-spacing:-.03em;margin-top:var(--space-2);">₹0</div>
+      </div>
+      <button onclick="closePayModal()"
+        style="width:32px;height:32px;background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-md);cursor:pointer;font-size:var(--text-sm);color:var(--color-text-secondary);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:var(--space-4);transition:background var(--ease-fast);"
+        onmouseover="this.style.background='var(--color-bg-muted)'" onmouseout="this.style.background=''">✕</button>
+    </div>
+
+    <!-- Body: payment method options -->
+    <div class="pay-modal-body">
+
+      <!-- Option 1: Upload proof -->
+      <div class="pay-method-option" id="optUpload" onclick="selectMethod('upload')">
+        <div class="pay-method-icon">📸</div>
+        <div>
+          <div class="pay-method-title">Upload Payment Proof</div>
+          <div class="pay-method-desc">Upload a UPI screenshot or transfer confirmation (up to 3 images).</div>
+        </div>
+      </div>
+
+      <!-- Option 2: Cash -->
+      <div class="pay-method-option" id="optCash" onclick="selectMethod('cash')">
+        <div class="pay-method-icon">💵</div>
+        <div>
+          <div class="pay-method-title">Paid with Cash</div>
+          <div class="pay-method-desc">Mark as paid in cash — the admin will verify and confirm.</div>
+        </div>
+      </div>
+
+      <!-- FIX 8: gold dashed border, gold click-to-upload -->
+      <div class="upload-zone" id="uploadZone"
+        ondragover="event.preventDefault();this.classList.add('drag-over')"
+        ondragleave="this.classList.remove('drag-over')"
+        ondrop="handleFileDrop(event)"
+        onclick="document.getElementById('receiptFiles').click()"
+      >
+        <div style="font-size:1.5rem;opacity:.4;margin-bottom:var(--space-2);">📤</div>
+        <p id="uploadLabel" style="font-size:var(--text-sm);color:var(--color-text-secondary);margin:0 0 var(--space-1);">Drag & drop or <span style="color:var(--color-accent);font-weight:600;">browse</span></p>
+        <p style="font-size:var(--text-xs);color:var(--color-text-tertiary);margin:0;">Up to 3 images · JPG, PNG, WEBP</p>
+        <input type="file" id="receiptFiles" accept="image/*" multiple style="display:none;" onchange="handleFileSelect(event)">
+        <div class="upload-preview" id="uploadPreview"></div>
+      </div>
+
+    </div>
+
+    <!-- FIX 15: flex:0 on modal buttons -->
+    <div class="pay-modal-footer">
+      <button onclick="closePayModal()"
+        style="flex:0;padding:9px var(--space-6);background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);font-weight:600;color:var(--color-text-secondary);cursor:pointer;transition:all var(--ease-fast);"
+        onmouseover="this.style.color='var(--color-text-primary)'" onmouseout="this.style.color=''">Cancel</button>
+      <button id="paySubmitBtn" onclick="submitPayment()"
+        style="flex:0;display:none;padding:9px var(--space-6);background:var(--color-accent);border:1px solid var(--color-accent);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);font-weight:700;color:#fff;cursor:pointer;transition:all var(--ease-fast);"
+        onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity=''">Submit Payment →</button>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ── Scripts ── -->
+<script>
+  /* ── State ── */
+  let payState = { billId: null, amount: 0, title: '', method: null };
+  let selectedFiles = [];
+
+  /* ── Modal open/close ── */
+  function openPayModal(billId, amount, title) {
+    payState = { billId, amount, title, method: null };
+    document.getElementById('payModalTitle').textContent  = title || 'Complete Payment';
+    document.getElementById('payModalAmount').textContent = '₹' + amount.toLocaleString('en-IN');
+    // Reset state
+    selectedFiles = [];
+    document.getElementById('uploadZone').classList.remove('visible');
+    document.getElementById('uploadPreview').innerHTML = '';
+    document.getElementById('uploadLabel').innerHTML = 'Drag & drop or <span style="color:var(--color-accent);font-weight:600;">browse</span>';
+    document.getElementById('receiptFiles').value = '';
+    document.getElementById('paySubmitBtn').style.display = 'none';
+    document.querySelectorAll('.pay-method-option').forEach(o => o.classList.remove('selected'));
+    document.getElementById('payModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closePayModal() {
+    document.getElementById('payModal').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePayModal(); });
+
+  /* ── Method selection ── */
+  function selectMethod(method) {
+    payState.method = method;
+    document.querySelectorAll('.pay-method-option').forEach(o => o.classList.remove('selected'));
+    document.getElementById(method === 'upload' ? 'optUpload' : 'optCash').classList.add('selected');
+
+    if (method === 'upload') {
+      document.getElementById('uploadZone').classList.add('visible');
+    } else {
+      document.getElementById('uploadZone').classList.remove('visible');
+    }
+    document.getElementById('paySubmitBtn').style.display = '';
+    document.getElementById('paySubmitBtn').textContent =
+      method === 'upload' ? '📤 Submit Proof' : '💵 Confirm Cash Payment';
+  }
+
+  /* ── File handling ── */
+  function handleFileSelect(event) {
+    const files = Array.from(event.target.files).slice(0, 3);
+    applyFiles(files);
+  }
+
+  function handleFileDrop(event) {
+    event.preventDefault();
+    event.currentTarget.classList.remove('drag-over');
+    const files = Array.from(event.dataTransfer.files).filter(f => f.type.startsWith('image/')).slice(0, 3);
+    if (files.length) {
+      const dt = new DataTransfer();
+      files.forEach(f => dt.items.add(f));
+      document.getElementById('receiptFiles').files = dt.files;
+      applyFiles(files);
+    }
+  }
+
+  function applyFiles(files) {
+    selectedFiles = files;
+    const preview = document.getElementById('uploadPreview');
+    preview.innerHTML = '';
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = document.createElement('img');
+        img.src = e.target.result;
+        img.title = file.name;
+        preview.appendChild(img);
+      };
+      reader.readAsDataURL(file);
+    });
+    const label = document.getElementById('uploadLabel');
+    label.innerHTML = files.length > 0
+      ? `📎 <strong style="color:var(--color-text-primary)">${files.length} file${files.length > 1 ? 's' : ''} selected</strong>`
+      : 'Drag & drop or <span style="color:var(--color-accent);font-weight:600;">browse</span>';
+  }
+
+  /* FIX 14: window-level drop prevention */
+  window.addEventListener('dragover', e => e.preventDefault());
+  window.addEventListener('drop',     e => e.preventDefault());
+
+  /* ── Submit ── */
+  function submitPayment() {
+    const { billId, amount, method } = payState;
+    if (!method) { showToast('⚠ Please choose a payment method', 'amber'); return; }
+    if (method === 'upload' && selectedFiles.length === 0) {
+      showToast('⚠ Please select at least one proof image', 'amber');
+      return;
+    }
+    if (method === 'cash' && !confirm(`Confirm cash payment of ₹${amount.toLocaleString('en-IN')}?\n\nThis will be sent to admin for verification.`)) return;
+
+    const slug     = '{{ apartment.slug }}';
+    const formData = new FormData();
+    formData.append('payment_method', method);
+    selectedFiles.forEach(f => formData.append('receipts', f));
+
+    const btn = document.getElementById('paySubmitBtn');
+    btn.disabled    = true;
+    btn.textContent = 'Submitting…';
+
+    fetch(`/apartments/${slug}/resident/bills/${billId}/pay`, {
+      method: 'POST',
+      body: formData,
+    })
+    .then(r => {
+      if (!r.headers.get('content-type')?.includes('application/json'))
+        throw new Error('Unexpected server response.');
+      return r.json();
+    })
+    .then(data => {
+      if (data.success) {
+        closePayModal();
+        showToast('✅ Payment submitted — awaiting admin confirmation');
+        setTimeout(() => location.reload(), 1600);
+      } else {
+        showToast('❌ ' + (data.message || 'Please try again.'), 'red');
+        btn.disabled    = false;
+        btn.textContent = method === 'upload' ? '📤 Submit Proof' : '💵 Confirm Cash Payment';
+      }
+    })
+    .catch(err => {
+      showToast('❌ ' + err.message, 'red');
+      btn.disabled    = false;
+      btn.textContent = method === 'upload' ? '📤 Submit Proof' : '💵 Confirm Cash Payment';
+    });
+  }
+
+  /* ── Filter ── FIX 13: chip passed as param, no global event ── */
+  function filterPayments(filter, chipEl) {
+    document.querySelectorAll('#filterChips .pay-filter-chip').forEach(c => c.classList.remove('active'));
+    if (chipEl) chipEl.classList.add('active');
+
+    let visible = 0;
+    document.querySelectorAll('#paymentsGrid .payment-card').forEach(card => {
+      const status = card.dataset.status;
+      const show   = filter === 'all'
+                  || (filter === 'pending'  && status === 'pending')
+                  || (filter === 'paid'     && status === 'paid')
+                  || (filter === 'pending-approval' && status === 'pending-approval');
+      card.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    const empty = document.getElementById('filterEmpty');
+    if (empty) empty.style.display = visible === 0 ? 'block' : 'none';
+  }
+
+  /* ── Toast ── FIX 14: uses payFadeUp, Resida token border ── */
+  function showToast(message, type) {
+    const colours = {
+      green : { border:'rgba(16,185,129,.30)',  left:'#10b981' },
+      amber : { border:'rgba(245,158,11,.30)',  left:'#f59e0b' },
+      red   : { border:'rgba(239,68,68,.30)',   left:'#ef4444' },
+    };
+    const c    = colours[type] || colours.green;
+    const toast = document.createElement('div');
+    toast.className = 'pay-toast';
+    toast.style.borderColor   = c.border;
+    toast.style.borderLeftColor = c.left;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.style.opacity = '0', 2000);
+    setTimeout(() => toast.remove(), 2400);
+  }
+</script>
+
+{% endblock %}

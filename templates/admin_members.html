@@ -1,0 +1,740 @@
+{% extends "apartment_base.html" %}
+
+{% block title %}Members — {{ apartment.name }}{% endblock %}
+
+{% block content %}
+
+{# ── Computed totals ── #}
+{% set total_flats    = (residents | length) + (pending_invites | length) %}
+{% set active_count   = residents | selectattr('status', 'equalto', 'active')   | list | length %}
+{% set inactive_count = residents | selectattr('status', 'equalto', 'inactive') | list | length %}
+{% set pending_count  = pending_invites | length %}
+{% set occupancy      = ((active_count / total_flats * 100) | round(0) | int) if total_flats > 0 else 0 %}
+
+
+<!-- ══════════════════════════════════
+     PAGE HEADER
+══════════════════════════════════ -->
+<div style="
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-8);
+">
+  <div>
+    <p style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Admin · {{ apartment.name }}</p>
+    <h1 style="
+      font-family: var(--font-display);
+      font-size: var(--text-4xl);
+      font-weight: 600;
+      color: var(--color-text-primary);
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: var(--space-2);
+    ">Member Management</h1>
+    <p style="font-size:var(--text-base);color:var(--color-text-secondary);">
+      Manage flats, invite residents, and oversee community membership.
+    </p>
+  </div>
+
+  <!-- CTA buttons -->
+  <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;align-items:center;">
+    <button
+      onclick="openModal('bulkModal')"
+      style="
+        display:inline-flex;align-items:center;gap:var(--space-2);
+        padding:9px var(--space-4);
+        background:var(--color-bg-surface);
+        border:1px solid var(--color-border-default);
+        border-radius:var(--radius-md);
+        font-family:var(--font-body);font-size:var(--text-sm);font-weight:600;
+        color:var(--color-text-primary);cursor:pointer;
+        transition:all var(--ease-fast);
+      "
+      onmouseover="this.style.borderColor='var(--color-accent-border)';this.style.background='var(--color-accent-subtle)'"
+      onmouseout="this.style.borderColor='';this.style.background=''"
+    >📋 Bulk Add Flats</button>
+
+    <button
+      onclick="openModal('addFlatModal')"
+      class="btn btn-primary"
+    >+ Add Flat</button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     STAT CARDS
+══════════════════════════════════ -->
+<div style="
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+  margin-bottom: var(--space-8);
+">
+  {% for stat in [
+    ('Total Flats',   total_flats,    '#', 'var(--color-text-primary)'),
+    ('Active',        active_count,   '#active-section', '#16a34a'),
+    ('Pending',       pending_count,  '#pending-section', 'var(--color-accent)'),
+    ('Occupancy',     occupancy ~ '%', '#', 'var(--color-text-primary)'),
+  ] %}
+  <a href="{{ stat[2] }}" style="
+    display:block;
+    background:var(--color-bg-surface);
+    border:1px solid var(--color-border-subtle);
+    border-radius:var(--radius-xl);
+    padding:var(--space-6);
+    text-decoration:none;
+    transition:all var(--ease-fast);
+    position:relative; overflow:hidden;
+  "
+    onmouseover="this.style.boxShadow='var(--shadow-md)';this.style.borderColor='var(--color-accent-border)'"
+    onmouseout="this.style.boxShadow='';this.style.borderColor=''"
+  >
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.09em;color:var(--color-text-tertiary);margin-bottom:var(--space-3);">{{ stat[0] }}</div>
+    <div style="font-family:var(--font-display);font-size:var(--text-4xl);font-weight:700;color:{{ stat[3] }};line-height:1;letter-spacing:-0.02em;">{{ stat[1] }}</div>
+  </a>
+  {% endfor %}
+</div>
+
+
+<!-- ══════════════════════════════════
+     FLATS GRID
+══════════════════════════════════ -->
+{% if total_flats == 0 %}
+
+<!-- Empty state -->
+<div style="
+  background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);
+  border-radius:var(--radius-2xl);padding:var(--space-20) var(--space-8);
+  text-align:center;
+">
+  <div style="font-size:4rem;margin-bottom:var(--space-5);opacity:0.35;">🏘️</div>
+  <h2 style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-3);letter-spacing:-0.02em;">No flats added yet</h2>
+  <p style="font-size:var(--text-base);color:var(--color-text-secondary);max-width:360px;margin:0 auto var(--space-7);line-height:1.6;">
+    Start by adding flats to generate invite codes and onboard residents.
+  </p>
+  <button onclick="openModal('addFlatModal')" class="btn btn-primary btn-lg">+ Add Your First Flat</button>
+</div>
+
+{% else %}
+
+<!-- Pending invites -->
+{% if pending_invites %}
+<div id="pending-section" style="margin-bottom:var(--space-8);">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:var(--space-5);">
+    <h2 style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.02em;">
+      Pending Invites
+    </h2>
+    <span style="font-size:var(--text-sm);color:var(--color-text-tertiary);">{{ pending_count }} awaiting registration</span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--space-4);">
+    {% for invite in pending_invites %}
+    <div style="
+      background:var(--color-bg-surface);
+      border:1px solid var(--color-border-subtle);
+      border-top:3px solid var(--color-accent);
+      border-radius:var(--radius-xl);
+      padding:var(--space-6);
+      transition:all var(--ease-base);
+    "
+      onmouseover="this.style.boxShadow='var(--shadow-md)';this.style.transform='translateY(-2px)'"
+      onmouseout="this.style.boxShadow='';this.style.transform=''"
+    >
+      <!-- Flat header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4);">
+        <div>
+          <div style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:700;color:var(--color-text-primary);letter-spacing:-0.02em;">
+            {{ invite.flat_number or 'TBD' }}
+          </div>
+          <div style="font-size:var(--text-xs);color:var(--color-text-tertiary);margin-top:2px;">Flat number</div>
+        </div>
+        <span style="
+          padding:4px var(--space-3);
+          background:rgba(212,168,83,0.12);
+          border:1px solid var(--color-accent-border);
+          border-radius:var(--radius-full);
+          font-size:var(--text-xs);font-weight:700;
+          text-transform:uppercase;letter-spacing:0.08em;
+          color:var(--color-accent);
+        ">⏳ Pending</span>
+      </div>
+
+      <!-- Resident type + email -->
+      <div style="margin-bottom:var(--space-4);padding:var(--space-3) var(--space-4);background:var(--color-bg-subtle);border-radius:var(--radius-md);border:1px solid var(--color-border-subtle);">
+        <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">
+          {{ invite.resident_type or 'owner' }}
+        </div>
+        {% if invite.email %}
+        <div style="font-size:var(--text-sm);color:var(--color-text-primary);font-weight:500;">{{ invite.email }}</div>
+        {% else %}
+        <div style="font-size:var(--text-sm);color:var(--color-text-tertiary);">No email set</div>
+        {% endif %}
+      </div>
+
+      <!-- Invite code block -->
+      <div style="
+        background:var(--color-bg-subtle);
+        border:1px solid var(--color-border-subtle);
+        border-radius:var(--radius-md);
+        padding:var(--space-4);
+        margin-bottom:var(--space-4);
+      ">
+        <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--color-text-tertiary);margin-bottom:var(--space-3);">Invite Code</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);">
+          <code style="
+            font-family:'Courier New',monospace;
+            font-size:var(--text-xl);
+            font-weight:700;
+            letter-spacing:0.12em;
+            color:var(--color-accent);
+          ">{{ invite.invite_code }}</code>
+          <button
+            onclick="copyInvite('{{ invite.invite_code }}')"
+            style="
+              padding:5px var(--space-3);
+              background:var(--color-accent);
+              color:#fff;border:none;
+              border-radius:var(--radius-sm);
+              font-family:var(--font-body);font-size:var(--text-xs);font-weight:700;
+              cursor:pointer;white-space:nowrap;
+              transition:opacity var(--ease-fast);
+            "
+            onmouseover="this.style.opacity='0.85'"
+            onmouseout="this.style.opacity='1'"
+          >Copy link</button>
+        </div>
+        {% if invite.expires_at %}
+        <div style="font-size:var(--text-xs);color:var(--color-text-tertiary);margin-top:var(--space-2);">
+          Expires {{ invite.expires_at.strftime('%d %b %Y') }}
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Actions -->
+      <div style="display:flex;gap:var(--space-2);">
+        <button
+          onclick="resendInvite('{{ invite.id }}')"
+          style="
+            flex:1;padding:8px var(--space-3);
+            background:var(--color-bg-subtle);
+            border:1px solid var(--color-border-default);
+            border-radius:var(--radius-md);
+            font-family:var(--font-body);font-size:var(--text-xs);font-weight:600;
+            color:var(--color-text-secondary);cursor:pointer;
+            transition:all var(--ease-fast);
+          "
+          onmouseover="this.style.borderColor='var(--color-accent-border)';this.style.color='var(--color-accent)'"
+          onmouseout="this.style.borderColor='';this.style.color=''"
+        >📨 Resend</button>
+        <button
+          onclick="deleteInvite('{{ invite.id }}')"
+          style="
+            padding:8px var(--space-3);
+            background:var(--color-bg-subtle);
+            border:1px solid var(--color-border-default);
+            border-radius:var(--radius-md);
+            font-family:var(--font-body);font-size:var(--text-xs);font-weight:600;
+            color:var(--color-danger);cursor:pointer;
+            transition:all var(--ease-fast);
+          "
+          onmouseover="this.style.borderColor='rgba(239,68,68,0.3)';this.style.background='rgba(239,68,68,0.07)'"
+          onmouseout="this.style.borderColor='';this.style.background=''"
+        >🗑️</button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+
+<!-- Registered residents -->
+{% if residents %}
+<div id="active-section">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:var(--space-5);">
+    <h2 style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.02em;">
+      Registered Residents
+    </h2>
+    <span style="font-size:var(--text-sm);color:var(--color-text-tertiary);">{{ residents | length }} resident{{ 's' if residents | length != 1 }}</span>
+  </div>
+
+  <div style="
+    background:var(--color-bg-surface);
+    border:1px solid var(--color-border-subtle);
+    border-radius:var(--radius-xl);
+    overflow:hidden;
+  ">
+    <!-- Table header -->
+    <div style="
+      display:grid;
+      grid-template-columns: 80px 1fr 1fr 120px 100px 140px;
+      gap:var(--space-4);
+      padding:var(--space-3) var(--space-6);
+      background:var(--color-bg-subtle);
+      border-bottom:1px solid var(--color-border-subtle);
+    " class="members-table-head">
+      {% for col in ['Flat', 'Name', 'Contact', 'Type', 'Status', 'Actions'] %}
+      <div style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--color-text-tertiary);">{{ col }}</div>
+      {% endfor %}
+    </div>
+
+    <!-- Rows -->
+    {% for resident in residents %}
+    <div style="
+      display:grid;
+      grid-template-columns: 80px 1fr 1fr 120px 100px 140px;
+      gap:var(--space-4);
+      padding:var(--space-4) var(--space-6);
+      border-bottom:{{ '1px solid var(--color-border-subtle)' if not loop.last else 'none' }};
+      align-items:center;
+      transition:background var(--ease-fast);
+    " class="members-table-row"
+      onmouseover="this.style.background='var(--color-bg-subtle)'"
+      onmouseout="this.style.background=''"
+    >
+      <!-- Flat -->
+      <div style="font-family:var(--font-display);font-size:var(--text-lg);font-weight:700;color:var(--color-text-primary);">{{ resident.flat_number }}</div>
+
+      <!-- Name + username -->
+      <div>
+        <div style="font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:2px;">{{ resident.full_name }}</div>
+        <div style="font-size:var(--text-xs);color:var(--color-text-tertiary);">@{{ resident.username }}</div>
+      </div>
+
+      <!-- Contact -->
+      <div>
+        {% if resident.email %}
+        <div style="font-size:var(--text-xs);color:var(--color-text-secondary);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ resident.email }}</div>
+        {% endif %}
+        {% if resident.phone %}
+        <div style="font-size:var(--text-xs);color:var(--color-text-tertiary);">{{ resident.phone }}</div>
+        {% endif %}
+      </div>
+
+      <!-- Type -->
+      <div>
+        <span style="
+          display:inline-block;
+          padding:3px var(--space-3);
+          background:var(--color-bg-subtle);
+          border:1px solid var(--color-border-default);
+          border-radius:var(--radius-full);
+          font-size:var(--text-xs);font-weight:600;
+          text-transform:capitalize;
+          color:var(--color-text-secondary);
+        ">{{ resident.resident_type or 'owner' }}</span>
+      </div>
+
+      <!-- Status -->
+      <div>
+        {% if resident.status == 'inactive' %}
+        <span style="display:inline-flex;align-items:center;gap:4px;padding:3px var(--space-3);background:rgba(156,163,175,0.12);border:1px solid rgba(156,163,175,0.25);border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;color:#9ca3af;">
+          Inactive
+        </span>
+        {% else %}
+        <span style="display:inline-flex;align-items:center;gap:4px;padding:3px var(--space-3);background:rgba(34,197,94,0.10);border:1px solid rgba(34,197,94,0.22);border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;color:#16a34a;">
+          <span style="width:5px;height:5px;background:#16a34a;border-radius:50%;flex-shrink:0;"></span>
+          Active
+        </span>
+        {% endif %}
+      </div>
+
+      <!-- Actions dropdown -->
+      <div style="display:flex;gap:var(--space-1);">
+        <button
+          onclick="toggleStatus('{{ resident.id }}', '{{ resident.status }}')"
+          title="{{ 'Deactivate' if resident.status == 'active' else 'Activate' }}"
+          style="width:30px;height:30px;background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-sm);cursor:pointer;font-size:0.75rem;transition:all var(--ease-fast);"
+          onmouseover="this.style.borderColor='var(--color-accent-border)';this.style.background='var(--color-accent-subtle)'"
+          onmouseout="this.style.borderColor='';this.style.background=''"
+        >{{ '🚫' if resident.status == 'active' else '✅' }}</button>
+
+        <button
+          onclick="resetPassword('{{ resident.id }}')"
+          title="Reset password"
+          style="width:30px;height:30px;background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-sm);cursor:pointer;font-size:0.75rem;transition:all var(--ease-fast);"
+          onmouseover="this.style.borderColor='var(--color-accent-border)';this.style.background='var(--color-accent-subtle)'"
+          onmouseout="this.style.borderColor='';this.style.background=''"
+        >🔑</button>
+
+        <button
+          onclick="removeResident('{{ resident.id }}')"
+          title="Remove resident"
+          style="width:30px;height:30px;background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-sm);cursor:pointer;font-size:0.75rem;transition:all var(--ease-fast);"
+          onmouseover="this.style.borderColor='rgba(239,68,68,0.3)';this.style.background='rgba(239,68,68,0.07)'"
+          onmouseout="this.style.borderColor='';this.style.background=''"
+        >🗑️</button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% endif %}{# end if total_flats == 0 #}
+
+
+<!-- ══════════════════════════════════
+     MODAL: Add Single Flat
+══════════════════════════════════ -->
+<div id="addFlatModal" style="
+  display:none;position:fixed;inset:0;z-index:1040;
+  background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);
+  align-items:center;justify-content:center;padding:var(--page-padding);
+" onclick="if(event.target===this)closeModal('addFlatModal')">
+  <div style="
+    background:var(--color-bg-surface);
+    border:1px solid var(--color-border-subtle);
+    border-radius:var(--radius-2xl);
+    padding:var(--space-8);
+    width:100%;max-width:460px;
+    box-shadow:var(--shadow-2xl);
+    position:relative;
+    animation:fadeUp 0.25s cubic-bezier(0.25,0.46,0.45,0.94) both;
+  ">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-7);">
+      <div>
+        <h2 style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.02em;">Add New Flat</h2>
+        <p style="font-size:var(--text-sm);color:var(--color-text-tertiary);margin-top:var(--space-1);">Generates an invite code and sends an email</p>
+      </div>
+      <button onclick="closeModal('addFlatModal')" style="width:32px;height:32px;background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-md);cursor:pointer;font-size:var(--text-sm);color:var(--color-text-secondary);display:flex;align-items:center;justify-content:center;transition:all var(--ease-fast);" onmouseover="this.style.background='var(--color-bg-muted)'" onmouseout="this.style.background=''">✕</button>
+    </div>
+
+    <form method="POST" action="{{ url_for('admin_add_flat', slug=apartment.slug) }}">
+
+      <div style="margin-bottom:var(--space-5);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Flat Number <span style="color:var(--color-danger)">*</span></label>
+        <input type="text" name="flat_number" placeholder="e.g. 101, A-201" required
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''">
+      </div>
+
+      <div style="margin-bottom:var(--space-5);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Resident Email <span style="color:var(--color-danger)">*</span></label>
+        <input type="email" name="email" placeholder="resident@example.com" required
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''">
+      </div>
+
+      <!-- Resident type toggle -->
+      <div style="margin-bottom:var(--space-6);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-3);">Resident Type <span style="color:var(--color-danger)">*</span></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-lg);padding:3px;gap:3px;">
+          <label style="
+            display:flex;align-items:center;justify-content:center;gap:var(--space-2);
+            padding:9px;border-radius:var(--radius-md);cursor:pointer;
+            font-family:var(--font-body);font-size:var(--text-sm);font-weight:600;
+            transition:all var(--ease-fast);
+          " id="typeOwnerLabel">
+            <input type="radio" name="resident_type" value="owner" checked style="display:none;" onchange="updateTypeTab()">
+            👤 Owner
+          </label>
+          <label style="
+            display:flex;align-items:center;justify-content:center;gap:var(--space-2);
+            padding:9px;border-radius:var(--radius-md);cursor:pointer;
+            font-family:var(--font-body);font-size:var(--text-sm);font-weight:600;
+            background:transparent;color:var(--color-text-secondary);
+            transition:all var(--ease-fast);
+          " id="typeTenantLabel">
+            <input type="radio" name="resident_type" value="tenant" style="display:none;" onchange="updateTypeTab()">
+            🏠 Tenant
+          </label>
+        </div>
+      </div>
+
+      <!-- What happens next info -->
+      <div style="display:flex;gap:var(--space-3);padding:var(--space-4);background:rgba(212,168,83,0.07);border:1px solid var(--color-accent-border);border-radius:var(--radius-md);margin-bottom:var(--space-6);">
+        <span style="font-size:1.1rem;flex-shrink:0;">💡</span>
+        <div style="font-size:var(--text-xs);color:var(--color-text-secondary);line-height:1.6;">
+          A unique invite code is generated and emailed to the resident. They complete registration themselves. Invite expires after use or 7 days.
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block" style="font-weight:700;">
+        Generate & Send Invite →
+      </button>
+    </form>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     MODAL: Bulk Add Flats
+══════════════════════════════════ -->
+<div id="bulkModal" style="
+  display:none;position:fixed;inset:0;z-index:1040;
+  background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);
+  align-items:center;justify-content:center;padding:var(--page-padding);
+" onclick="if(event.target===this)closeModal('bulkModal')">
+  <div style="
+    background:var(--color-bg-surface);
+    border:1px solid var(--color-border-subtle);
+    border-radius:var(--radius-2xl);
+    padding:var(--space-8);
+    width:100%;max-width:560px;
+    max-height:85vh;overflow-y:auto;
+    box-shadow:var(--shadow-2xl);
+    position:relative;
+    animation:fadeUp 0.25s cubic-bezier(0.25,0.46,0.45,0.94) both;
+  ">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-7);">
+      <div>
+        <h2 style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.02em;">Bulk Add Flats</h2>
+        <p style="font-size:var(--text-sm);color:var(--color-text-tertiary);margin-top:var(--space-1);">Add multiple flats at once</p>
+      </div>
+      <button onclick="closeModal('bulkModal')" style="width:32px;height:32px;background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-md);cursor:pointer;font-size:var(--text-sm);color:var(--color-text-secondary);display:flex;align-items:center;justify-content:center;transition:all var(--ease-fast);" onmouseover="this.style.background='var(--color-bg-muted)'" onmouseout="this.style.background=''">✕</button>
+    </div>
+
+    <!-- Step 1 -->
+    <div id="bulkStep1">
+      <div style="margin-bottom:var(--space-5);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">How many flats? <span style="color:var(--color-danger)">*</span></label>
+        <input type="number" id="numFlats" placeholder="e.g. 10" min="1" max="50"
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''">
+        <p style="font-size:var(--text-xs);color:var(--color-text-tertiary);margin-top:var(--space-2);">Maximum 50 flats per batch</p>
+      </div>
+      <button onclick="generateBulkFields()" class="btn btn-primary btn-block" style="font-weight:700;">
+        Next: Enter Details →
+      </button>
+    </div>
+
+    <!-- Step 2 -->
+    <form id="bulkStep2" method="POST" action="{{ url_for('admin_bulk_add_flats', slug=apartment.slug) }}" style="display:none;">
+      <input type="hidden" name="num_flats" id="numFlatsHidden">
+
+      <div id="bulkFieldsContainer" style="display:flex;flex-direction:column;gap:var(--space-4);margin-bottom:var(--space-6);"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 2fr;gap:var(--space-3);">
+        <button type="button" onclick="backToBulkStep1()" style="
+          padding:11px;background:var(--color-bg-subtle);
+          border:1px solid var(--color-border-default);border-radius:var(--radius-md);
+          font-family:var(--font-body);font-size:var(--text-sm);font-weight:600;
+          color:var(--color-text-secondary);cursor:pointer;
+          transition:all var(--ease-fast);
+        " onmouseover="this.style.background='var(--color-bg-muted)'" onmouseout="this.style.background=''">← Back</button>
+        <button type="submit" class="btn btn-primary" style="font-weight:700;">Send All Invites →</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+
+<!-- ── Responsive ── -->
+<style>
+  @media (max-width: 860px) {
+    .members-table-head,
+    .members-table-row {
+      grid-template-columns: 60px 1fr 100px 80px !important;
+    }
+    /* Hide contact + type columns on mobile */
+    .members-table-head  > *:nth-child(3),
+    .members-table-head  > *:nth-child(4),
+    .members-table-row   > *:nth-child(3),
+    .members-table-row   > *:nth-child(4) { display: none; }
+  }
+  @media (max-width: 560px) {
+    .members-table-head,
+    .members-table-row {
+      grid-template-columns: 56px 1fr 90px !important;
+    }
+    .members-table-head  > *:nth-child(5),
+    .members-table-row   > *:nth-child(5) { display: none; }
+  }
+</style>
+
+
+<!-- ── Scripts ── -->
+<script>
+  // ── Modal open/close ──
+  function openModal(id) {
+    document.getElementById(id).style.display = 'flex';
+  }
+  function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      ['addFlatModal', 'bulkModal'].forEach(id => {
+        document.getElementById(id).style.display = 'none';
+      });
+    }
+  });
+
+  // ── Resident type tab in add-flat modal ──
+  function updateTypeTab() {
+    const ownerChecked = document.querySelector('input[name="resident_type"][value="owner"]').checked;
+    const on  = 'background:var(--color-bg-surface);color:var(--color-text-primary);box-shadow:0 1px 3px rgba(0,0,0,0.07);';
+    const off = 'background:transparent;color:var(--color-text-secondary);box-shadow:none;';
+    document.getElementById('typeOwnerLabel').setAttribute( 'style',
+      document.getElementById('typeOwnerLabel').getAttribute('style').replace(/background[^;]+;|color[^;]+;|box-shadow[^;]+;/g,'') + (ownerChecked ? on : off)
+    );
+    document.getElementById('typeTenantLabel').setAttribute('style',
+      document.getElementById('typeTenantLabel').getAttribute('style').replace(/background[^;]+;|color[^;]+;|box-shadow[^;]+;/g,'') + (ownerChecked ? off : on)
+    );
+  }
+  // Set initial state
+  document.addEventListener('DOMContentLoaded', updateTypeTab);
+
+  // ── Copy invite link ──
+  function copyInvite(code) {
+    const url = `${location.origin}/apartments/{{ apartment.slug }}/join?code=${code}`;
+    navigator.clipboard.writeText(url).then(() => {
+      showToast('Invite link copied to clipboard');
+    }).catch(() => {
+      prompt('Copy this link:', url);
+    });
+  }
+
+  // ── Toast notification (no alert) ──
+  function showToast(msg, type = 'success') {
+    let t = document.getElementById('toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'toast';
+      t.style.cssText = `
+        position:fixed;bottom:var(--space-6);right:var(--space-6);
+        padding:var(--space-3) var(--space-5);
+        border-radius:var(--radius-lg);
+        font-family:var(--font-body);font-size:var(--text-sm);font-weight:600;
+        box-shadow:var(--shadow-xl);
+        z-index:9999;
+        transition:opacity 0.3s ease,transform 0.3s ease;
+        pointer-events:none;
+      `;
+      document.body.appendChild(t);
+    }
+    const isErr = type === 'error';
+    t.style.background = isErr ? 'rgba(239,68,68,0.95)' : '#111';
+    t.style.color       = '#fff';
+    t.style.border      = isErr ? '1px solid rgba(239,68,68,0.5)' : '1px solid rgba(255,255,255,0.12)';
+    t.textContent       = msg;
+    t.style.opacity     = '1';
+    t.style.transform   = 'translateY(0)';
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => {
+      t.style.opacity   = '0';
+      t.style.transform = 'translateY(8px)';
+    }, 3000);
+  }
+
+  // ── Fetch helpers ──
+  function apiFetch(url, onSuccess, onError) {
+    fetch(url, { method: 'POST' })
+      .then(r => r.json())
+      .then(d => d.success ? onSuccess(d) : showToast(d.error || 'Action failed', 'error'))
+      .catch(() => showToast('Network error, please try again', 'error'));
+  }
+
+  function resendInvite(id) {
+    apiFetch(
+      `/apartments/{{ apartment.slug }}/admin/invites/${id}/resend`,
+      () => showToast('Invite resent successfully')
+    );
+  }
+
+  function deleteInvite(id) {
+    if (!confirm('Delete this invite? This cannot be undone.')) return;
+    apiFetch(
+      `/apartments/{{ apartment.slug }}/admin/invites/${id}/delete`,
+      () => { showToast('Invite deleted'); location.reload(); }
+    );
+  }
+
+  function resetPassword(id) {
+    if (!confirm('Generate a password reset link for this resident?')) return;
+    apiFetch(
+      `/apartments/{{ apartment.slug }}/admin/residents/${id}/reset-password`,
+      () => showToast('Password reset link sent')
+    );
+  }
+
+  function toggleStatus(id, current) {
+    const next   = current === 'active' ? 'inactive' : 'active';
+    const action = next    === 'active' ? 'activate' : 'deactivate';
+    if (!confirm(`${next === 'active' ? 'Activate' : 'Deactivate'} this resident?`)) return;
+    fetch(`/apartments/{{ apartment.slug }}/admin/residents/${id}/toggle-status`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: next }),
+    })
+      .then(r => r.json())
+      .then(d => d.success ? location.reload() : showToast(d.error || 'Failed', 'error'))
+      .catch(() => showToast('Network error', 'error'));
+  }
+
+  function removeResident(id) {
+    if (!confirm('Remove this resident? Their data will be permanently deleted.')) return;
+    apiFetch(
+      `/apartments/{{ apartment.slug }}/admin/residents/${id}/remove`,
+      () => { showToast('Resident removed'); location.reload(); }
+    );
+  }
+
+  // ── Bulk add fields generator ──
+  function generateBulkFields() {
+    const n = parseInt(document.getElementById('numFlats').value);
+    if (!n || n < 1 || n > 50) {
+      showToast('Please enter a number between 1 and 50', 'error');
+      return;
+    }
+    document.getElementById('numFlatsHidden').value = n;
+    const container = document.getElementById('bulkFieldsContainer');
+    container.innerHTML = '';
+
+    for (let i = 0; i < n; i++) {
+      const row = document.createElement('div');
+      row.style.cssText = `
+        background:var(--color-bg-subtle);
+        border:1px solid var(--color-border-subtle);
+        border-radius:var(--radius-lg);
+        padding:var(--space-5);
+      `;
+      row.innerHTML = `
+        <div style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--color-text-tertiary);margin-bottom:var(--space-4);">Flat ${i + 1}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-3);">
+          <div>
+            <label style="display:block;font-size:var(--text-xs);font-weight:600;color:var(--color-text-secondary);margin-bottom:var(--space-2);">Flat Number *</label>
+            <input type="text" name="flat_number_${i}" placeholder="101" required
+              style="width:100%;padding:9px var(--space-3);background:var(--color-bg-surface);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);color:var(--color-text-primary);"
+              onfocus="this.style.borderColor='var(--color-accent)'"
+              onblur="this.style.borderColor=''">
+          </div>
+          <div>
+            <label style="display:block;font-size:var(--text-xs);font-weight:600;color:var(--color-text-secondary);margin-bottom:var(--space-2);">Type *</label>
+            <select name="flat_type_${i}" required
+              style="width:100%;padding:9px var(--space-3);background:var(--color-bg-surface);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);color:var(--color-text-primary);">
+              <option value="owner">Owner</option>
+              <option value="tenant">Tenant</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label style="display:block;font-size:var(--text-xs);font-weight:600;color:var(--color-text-secondary);margin-bottom:var(--space-2);">Resident Email *</label>
+          <input type="email" name="flat_email_${i}" placeholder="resident@example.com" required
+            style="width:100%;padding:9px var(--space-3);background:var(--color-bg-surface);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);color:var(--color-text-primary);"
+            onfocus="this.style.borderColor='var(--color-accent)'"
+            onblur="this.style.borderColor=''">
+        </div>
+      `;
+      container.appendChild(row);
+    }
+
+    document.getElementById('bulkStep1').style.display = 'none';
+    document.getElementById('bulkStep2').style.display = 'block';
+  }
+
+  function backToBulkStep1() {
+    document.getElementById('bulkStep1').style.display = 'block';
+    document.getElementById('bulkStep2').style.display = 'none';
+  }
+</script>
+
+{% endblock %}

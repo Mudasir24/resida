@@ -1,0 +1,665 @@
+{% extends "apartment_base.html" %}
+
+{% block title %}Complete Registration — {{ apartment.name }}{% endblock %}
+
+{% block content %}
+
+<div style="
+  max-width: 1000px;
+  margin-inline: auto;
+  padding: var(--space-10) 0 var(--space-20);
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: var(--space-10);
+  align-items: start;
+" class="reg-layout">
+
+
+  <!-- ══════════════════════════════
+       LEFT: Context panel
+  ══════════════════════════════ -->
+  <div style="position: sticky; top: calc(var(--navbar-height) + var(--space-8));">
+
+    <!-- Apartment identity -->
+    <div class="reveal" style="
+      background: var(--color-bg-surface);
+      border: 1px solid var(--color-border-subtle);
+      border-radius: var(--radius-2xl);
+      overflow: hidden;
+      margin-bottom: var(--space-5);
+    ">
+      <!-- Photo header -->
+      {% if apartment.photo %}
+      <div style="height: 140px; overflow: hidden; position: relative;">
+        <img
+          src="{{ apartment.photo }}"
+          alt="{{ apartment.name }}"
+          loading="eager"
+          decoding="sync"
+          style="width:100%;height:100%;object-fit:cover;display:block;filter:none;opacity:1;animation:none;"
+        >
+        <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(12,16,24,0.7) 0%,transparent 60%);"></div>
+      </div>
+      {% else %}
+      <div style="height:100px;background:linear-gradient(135deg,var(--brand-400),var(--brand-600));display:flex;align-items:center;justify-content:center;">
+        <span style="font-family:var(--font-display);font-size:3rem;font-weight:700;color:#fff;opacity:0.4;">{{ apartment.name[0]|upper }}</span>
+      </div>
+      {% endif %}
+
+      <div style="padding: var(--space-6);">
+        <span class="section-eyebrow" style="margin-bottom:var(--space-3);">You're invited to join</span>
+        <h2 style="
+          font-family: var(--font-display);
+          font-size: var(--text-2xl);
+          font-weight: 600;
+          color: var(--color-text-primary);
+          letter-spacing: -0.02em;
+          margin-bottom: var(--space-2);
+        ">{{ apartment.name }}</h2>
+        {% if apartment.address or apartment.city %}
+        <p style="font-size:var(--text-sm);color:var(--color-text-tertiary);display:flex;align-items:center;gap:var(--space-2);">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+          </svg>
+          {{ apartment.address }}{% if apartment.address and apartment.city %}, {% endif %}{{ apartment.city }}
+        </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- What you get -->
+    <div class="reveal stagger-2" style="
+      background: var(--color-bg-surface);
+      border: 1px solid var(--color-border-subtle);
+      border-radius: var(--radius-xl);
+      padding: var(--space-6);
+    ">
+      <p style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--color-text-tertiary);margin-bottom:var(--space-4);">What you'll get access to</p>
+      {% for item in [
+        ('💳', 'Payment history & due dates'),
+        ('📋', 'Submit maintenance requests'),
+        ('👥', 'Community resident directory'),
+        ('📢', 'Building announcements'),
+        ('💸', 'Shared expense visibility'),
+        ('📊', 'Personal dashboard'),
+      ] %}
+      <div style="display:flex;align-items:center;gap:var(--space-3);padding:var(--space-2) 0;{% if not loop.last %}border-bottom:1px solid var(--color-border-subtle);{% endif %}">
+        <span style="font-size:1rem;flex-shrink:0;width:24px;text-align:center;">{{ item[0] }}</span>
+        <span style="font-size:var(--text-sm);color:var(--color-text-secondary);">{{ item[1] }}</span>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div>
+
+
+  <!-- ══════════════════════════════
+       RIGHT: Registration form
+  ══════════════════════════════ -->
+  <div class="reveal stagger-1">
+
+    <!-- Form card -->
+    <div style="
+      background: var(--color-bg-surface);
+      border: 1px solid var(--color-border-subtle);
+      border-radius: var(--radius-2xl);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+    ">
+
+      <!-- Card header -->
+      <div style="
+        padding: var(--space-7) var(--space-8) var(--space-6);
+        border-bottom: 1px solid var(--color-border-subtle);
+        background: var(--color-bg-subtle);
+      ">
+        <h1 style="
+          font-family: var(--font-display);
+          font-size: var(--text-2xl);
+          font-weight: 600;
+          color: var(--color-text-primary);
+          letter-spacing: -0.02em;
+          margin-bottom: var(--space-1);
+        ">Complete Your Registration</h1>
+        <p style="font-size:var(--text-sm);color:var(--color-text-tertiary);">Fill in your details to activate your account</p>
+      </div>
+
+      <form method="POST" action="{{ url_for('complete_registration', slug=apartment.slug) }}" id="registrationForm" style="padding: var(--space-8);">
+
+
+        <!-- ── SECTION: Invite Code ── -->
+        <div style="margin-bottom: var(--space-8);">
+          <div style="
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            margin-bottom: var(--space-5);
+            padding-bottom: var(--space-4);
+            border-bottom: 1px solid var(--color-border-subtle);
+          ">
+            <div style="
+              width: 28px; height: 28px;
+              background: var(--color-accent);
+              border-radius: var(--radius-md);
+              display: flex; align-items: center; justify-content: center;
+              font-size: var(--text-xs); font-weight: 700; color: #fff;
+              flex-shrink: 0;
+            ">1</div>
+            <h3 style="font-family:var(--font-display);font-size:var(--text-lg);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.01em;">Invitation</h3>
+          </div>
+
+          <!-- Info callout -->
+          <div style="
+            display: flex;
+            gap: var(--space-3);
+            padding: var(--space-4);
+            background: rgba(212,168,83,0.08);
+            border: 1px solid var(--color-accent-border);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--space-5);
+          ">
+            <span style="font-size:1.1rem;flex-shrink:0;margin-top:1px;">📨</span>
+            <div>
+              <p style="font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:3px;">Got an invite code?</p>
+              <p style="font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.5;">Enter the unique code sent to your email by the apartment administrator.</p>
+            </div>
+          </div>
+
+          <!-- Invite code field -->
+          <div style="margin-bottom:var(--space-3);">
+            <label for="invite_code" style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">
+              Invite Code <span style="color:var(--color-danger)">*</span>
+            </label>
+            <input
+              type="text"
+              id="invite_code"
+              name="invite_code"
+              placeholder="e.g. A1B2C3D4"
+              value="{{ invite_code if invite_code else '' }}"
+              required
+              pattern="[A-Za-z0-9]{8,12}"
+              autocomplete="off"
+              spellcheck="false"
+              style="
+                width:100%;
+                padding:11px var(--space-4);
+                background:var(--color-bg-subtle);
+                border:1.5px solid var(--color-border-default);
+                border-radius:var(--radius-md);
+                font-family:'Courier New',monospace;
+                font-size:var(--text-base);
+                letter-spacing:0.12em;
+                color:var(--color-text-primary);
+                text-transform:uppercase;
+                transition:border-color var(--ease-fast),box-shadow var(--ease-fast);
+              "
+              onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+              onblur="this.style.borderColor='';this.style.boxShadow=''"
+            >
+            <p style="font-size:var(--text-xs);color:var(--color-text-tertiary);margin-top:var(--space-2);">
+              Sent to your email by the apartment administrator
+            </p>
+          </div>
+
+          <!-- Invite status (shown by JS) -->
+          <div id="inviteStatus" style="display:none;"></div>
+        </div>
+
+
+        <!-- ── SECTION: Personal Info ── -->
+        <div style="margin-bottom: var(--space-8);">
+          <div style="
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            margin-bottom: var(--space-5);
+            padding-bottom: var(--space-4);
+            border-bottom: 1px solid var(--color-border-subtle);
+          ">
+            <div style="width:28px;height:28px;background:var(--color-accent);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:700;color:#fff;flex-shrink:0;">2</div>
+            <h3 style="font-family:var(--font-display);font-size:var(--text-lg);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.01em;">Personal Information</h3>
+          </div>
+
+          <!-- Full name -->
+          <div style="margin-bottom:var(--space-5);">
+            <label for="full_name" style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">
+              Full Name <span style="color:var(--color-danger)">*</span>
+            </label>
+            <input
+              type="text" id="full_name" name="full_name"
+              placeholder="Your full name"
+              required minlength="3"
+              style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+              onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+              onblur="this.style.borderColor='';this.style.boxShadow=''"
+            >
+          </div>
+
+          <!-- Email + Phone row -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);" class="form-2col">
+            <div>
+              <label for="email" style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">
+                Email <span style="color:var(--color-danger)">*</span>
+              </label>
+              <input
+                type="email" id="email" name="email"
+                placeholder="you@email.com"
+                required
+                style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+                onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+                onblur="this.style.borderColor='';this.style.boxShadow=''"
+              >
+            </div>
+            <div>
+              <label for="phone" style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Phone</label>
+              <input
+                type="tel" id="phone" name="phone"
+                placeholder="+1 234 567 8900"
+                pattern="[\+\d\s\-\(\)]+"
+                style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+                onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+                onblur="this.style.borderColor='';this.style.boxShadow=''"
+              >
+            </div>
+          </div>
+        </div>
+
+
+        <!-- ── SECTION: Account Credentials ── -->
+        <div style="margin-bottom: var(--space-8);">
+          <div style="
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            margin-bottom: var(--space-5);
+            padding-bottom: var(--space-4);
+            border-bottom: 1px solid var(--color-border-subtle);
+          ">
+            <div style="width:28px;height:28px;background:var(--color-accent);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:var(--text-xs);font-weight:700;color:#fff;flex-shrink:0;">3</div>
+            <h3 style="font-family:var(--font-display);font-size:var(--text-lg);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.01em;">Account Credentials</h3>
+          </div>
+
+          <!-- Username -->
+          <div style="margin-bottom:var(--space-5);">
+            <label for="username" style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">
+              Username <span style="color:var(--color-danger)">*</span>
+            </label>
+            <div style="position:relative;">
+              <input
+                type="text" id="username" name="username"
+                placeholder="Choose a username"
+                required minlength="4" maxlength="20"
+                pattern="[a-zA-Z0-9_-]+"
+                autocomplete="username"
+                style="width:100%;padding:11px var(--space-12) 11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+                onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+                onblur="this.style.borderColor='';this.style.boxShadow=''"
+              >
+              <!-- Availability badge inside input -->
+              <span id="username-badge" style="
+                position:absolute;right:var(--space-3);top:50%;transform:translateY(-50%);
+                font-size:var(--text-xs);font-weight:700;
+                padding:2px var(--space-2);border-radius:var(--radius-full);
+                display:none;pointer-events:none;
+              "></span>
+            </div>
+            <div id="username-message" style="font-size:var(--text-xs);margin-top:var(--space-2);min-height:16px;color:var(--color-text-tertiary);">
+              Letters, numbers, underscores and hyphens only · 4–20 chars
+            </div>
+          </div>
+
+          <!-- Password -->
+          <div style="margin-bottom:var(--space-5);">
+            <label for="password" style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">
+              Password <span style="color:var(--color-danger)">*</span>
+            </label>
+            <input
+              type="password" id="password" name="password"
+              placeholder="Create a strong password"
+              required minlength="8"
+              autocomplete="new-password"
+              style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+              onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+              onblur="this.style.borderColor='';this.style.boxShadow=''"
+            >
+
+            <!-- Strength bar -->
+            <div style="margin-top:var(--space-3);height:3px;background:var(--color-border-default);border-radius:2px;overflow:hidden;">
+              <div id="strengthBar" style="height:100%;width:0;border-radius:2px;transition:width 0.3s ease,background 0.3s ease;"></div>
+            </div>
+
+            <!-- Requirements checklist -->
+            <div style="
+              display:grid;grid-template-columns:1fr 1fr;gap:var(--space-1) var(--space-4);
+              margin-top:var(--space-3);
+              padding:var(--space-4);
+              background:var(--color-bg-subtle);
+              border:1px solid var(--color-border-subtle);
+              border-radius:var(--radius-md);
+            ">
+              <div id="req-length"    class="pw-req" style="font-size:var(--text-xs);color:var(--color-text-tertiary);display:flex;align-items:center;gap:var(--space-2);">
+                <span class="req-dot" style="width:6px;height:6px;border-radius:50%;background:var(--color-border-default);flex-shrink:0;transition:background var(--ease-fast);"></span>
+                8+ characters
+              </div>
+              <div id="req-uppercase" class="pw-req" style="font-size:var(--text-xs);color:var(--color-text-tertiary);display:flex;align-items:center;gap:var(--space-2);">
+                <span class="req-dot" style="width:6px;height:6px;border-radius:50%;background:var(--color-border-default);flex-shrink:0;transition:background var(--ease-fast);"></span>
+                Uppercase letter
+              </div>
+              <div id="req-lowercase" class="pw-req" style="font-size:var(--text-xs);color:var(--color-text-tertiary);display:flex;align-items:center;gap:var(--space-2);">
+                <span class="req-dot" style="width:6px;height:6px;border-radius:50%;background:var(--color-border-default);flex-shrink:0;transition:background var(--ease-fast);"></span>
+                Lowercase letter
+              </div>
+              <div id="req-number"    class="pw-req" style="font-size:var(--text-xs);color:var(--color-text-tertiary);display:flex;align-items:center;gap:var(--space-2);">
+                <span class="req-dot" style="width:6px;height:6px;border-radius:50%;background:var(--color-border-default);flex-shrink:0;transition:background var(--ease-fast);"></span>
+                One number
+              </div>
+            </div>
+          </div>
+
+          <!-- Confirm password -->
+          <div>
+            <label for="confirm_password" style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">
+              Confirm Password <span style="color:var(--color-danger)">*</span>
+            </label>
+            <input
+              type="password" id="confirm_password" name="confirm_password"
+              placeholder="Re-enter your password"
+              required
+              autocomplete="new-password"
+              style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast),border-width var(--ease-fast);"
+              onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+              onblur="this.style.borderColor='';this.style.boxShadow=''"
+            >
+            <p id="passwordMatch" style="font-size:var(--text-xs);margin-top:var(--space-2);min-height:16px;"></p>
+          </div>
+        </div>
+
+
+        <!-- ── Submit ── -->
+        <button
+          type="submit"
+          id="submitBtn"
+          class="btn btn-primary btn-lg btn-block"
+          style="font-weight: 700; letter-spacing: 0.01em;"
+        >
+          Complete Registration →
+        </button>
+
+        <p style="text-align:center;margin-top:var(--space-4);font-size:var(--text-xs);color:var(--color-text-tertiary);">
+          Already have an account?
+          <a href="{{ url_for('apartment_home', slug=apartment.slug) }}" style="color:var(--color-text-secondary);text-decoration:underline;text-underline-offset:2px;">
+            Sign in here
+          </a>
+        </p>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── Responsive ── -->
+<style>
+  @media (max-width: 860px) {
+    .reg-layout { grid-template-columns: 1fr !important; max-width: 560px !important; }
+    .reg-layout > div:first-child { position: static !important; }
+  }
+  @media (max-width: 520px) {
+    .form-2col { grid-template-columns: 1fr !important; }
+  }
+</style>
+
+
+<!-- ── Scripts ── -->
+<script>
+  // ── Helpers ──
+  function setInputState(input, state) {
+    // state: 'default' | 'valid' | 'invalid'
+    const colors = {
+      default: '',
+      valid:   'var(--color-success)',
+      invalid: 'var(--color-danger)',
+    };
+    input.style.borderColor = colors[state];
+  }
+
+  // ── Invite code verification ──
+  const inviteInput  = document.getElementById('invite_code');
+  const inviteStatus = document.getElementById('inviteStatus');
+  let inviteVerified = false;
+
+  function showInviteStatus(type, html) {
+    // type: 'success' | 'error' | 'checking'
+    const styles = {
+      success: `background:var(--color-success-bg,rgba(34,197,94,0.08));border:1px solid rgba(34,197,94,0.25);border-radius:var(--radius-md);padding:var(--space-4);font-size:var(--text-sm);color:var(--color-success,#16a34a);margin-top:var(--space-3);`,
+      error:   `background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:var(--radius-md);padding:var(--space-4);font-size:var(--text-sm);color:var(--color-danger);margin-top:var(--space-3);`,
+      checking:`background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-md);padding:var(--space-4);font-size:var(--text-sm);color:var(--color-text-tertiary);margin-top:var(--space-3);`,
+    };
+    inviteStatus.setAttribute('style', styles[type]);
+    inviteStatus.innerHTML = html;
+    inviteStatus.style.display = 'block';
+  }
+
+  inviteInput.addEventListener('blur', async function() {
+    const code = this.value.trim().toUpperCase();
+    this.value = code;
+    if (code.length < 8) return;
+
+    showInviteStatus('checking', '⏳ Verifying invite code…');
+
+    try {
+      const res  = await fetch('{{ url_for("verify_invite_code", slug=apartment.slug) }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invite_code: code }),
+      });
+      const data = await res.json();
+
+      if (data.valid) {
+        inviteVerified = true;
+        setInputState(inviteInput, 'valid');
+
+        const roleBadge = {
+          admin:    `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.25);border-radius:999px;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#dc2626;">👑 Admin</span>`,
+          owner:    `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:rgba(212,168,83,0.15);border:1px solid rgba(212,168,83,0.3);border-radius:999px;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--brand-600);">🏠 Owner</span>`,
+          resident: `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;background:rgba(34,197,94,0.10);border:1px solid rgba(34,197,94,0.25);border-radius:999px;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#16a34a;">✓ Resident</span>`,
+        }[data.role] || '';
+
+        showInviteStatus('success', `
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            ✓ <strong>${data.message || 'Invite code verified'}</strong>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            ${roleBadge}
+            ${data.email ? `<span style="font-size:0.75rem;opacity:0.7;">Expected email: ${data.email}</span>` : ''}
+          </div>
+        `);
+      } else {
+        inviteVerified = false;
+        setInputState(inviteInput, 'invalid');
+        showInviteStatus('error', `✗ ${data.message || 'Invalid invite code'}`);
+      }
+    } catch {
+      showInviteStatus('error', '✗ Could not verify. Please try again.');
+    }
+  });
+
+  // Force uppercase as user types
+  inviteInput.addEventListener('input', function() {
+    const pos = this.selectionStart;
+    this.value = this.value.toUpperCase();
+    this.setSelectionRange(pos, pos);
+    inviteVerified = false;
+    inviteStatus.style.display = 'none';
+    setInputState(this, 'default');
+  });
+
+
+  // ── Username availability ──
+  const usernameInput   = document.getElementById('username');
+  const usernameBadge   = document.getElementById('username-badge');
+  const usernameMessage = document.getElementById('username-message');
+  let isUsernameValid   = false;
+  let usernameTimeout;
+
+  function setUsernameBadge(state) {
+    const cfg = {
+      '':          { display: 'none', text: '',              bg: '', color: '' },
+      'checking':  { display: 'inline', text: '…',          bg: 'var(--color-bg-muted)', color: 'var(--color-text-tertiary)' },
+      'available': { display: 'inline', text: '✓ Available', bg: 'rgba(34,197,94,0.10)', color: '#16a34a' },
+      'taken':     { display: 'inline', text: '✗ Taken',     bg: 'rgba(239,68,68,0.10)', color: 'var(--color-danger)' },
+    };
+    const c = cfg[state];
+    usernameBadge.style.display    = c.display;
+    usernameBadge.textContent       = c.text;
+    usernameBadge.style.background  = c.bg;
+    usernameBadge.style.color       = c.color;
+  }
+
+  usernameInput.addEventListener('input', function() {
+    const val = this.value.trim();
+    clearTimeout(usernameTimeout);
+    isUsernameValid = false;
+    setUsernameBadge('');
+    usernameMessage.style.color = 'var(--color-text-tertiary)';
+
+    if (!val) {
+      usernameMessage.textContent = 'Letters, numbers, underscores and hyphens only · 4–20 chars';
+      setInputState(this, 'default');
+      return;
+    }
+    if (val.length < 4) {
+      usernameMessage.textContent = 'At least 4 characters required';
+      usernameMessage.style.color = 'var(--color-danger)';
+      setInputState(this, 'invalid');
+      return;
+    }
+    if (val.length > 20) {
+      usernameMessage.textContent = 'Maximum 20 characters';
+      usernameMessage.style.color = 'var(--color-danger)';
+      setInputState(this, 'invalid');
+      return;
+    }
+    if (!/^[a-zA-Z0-9_-]+$/.test(val)) {
+      usernameMessage.textContent = 'Only letters, numbers, _ and - allowed';
+      usernameMessage.style.color = 'var(--color-danger)';
+      setInputState(this, 'invalid');
+      return;
+    }
+
+    setUsernameBadge('checking');
+    usernameMessage.textContent = 'Checking availability…';
+
+    usernameTimeout = setTimeout(() => {
+      fetch('{{ url_for("check_username_availability", slug=apartment.slug) }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: val }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.available) {
+            isUsernameValid = true;
+            setUsernameBadge('available');
+            usernameMessage.textContent = 'Username is available';
+            usernameMessage.style.color = '#16a34a';
+            setInputState(usernameInput, 'valid');
+          } else {
+            isUsernameValid = false;
+            setUsernameBadge('taken');
+            usernameMessage.textContent = data.message || 'Username already taken';
+            usernameMessage.style.color = 'var(--color-danger)';
+            setInputState(usernameInput, 'invalid');
+          }
+        })
+        .catch(() => {
+          setUsernameBadge('');
+          usernameMessage.textContent = '';
+        });
+    }, 450);
+  });
+
+
+  // ── Password strength ──
+  const passwordInput   = document.getElementById('password');
+  const strengthBar     = document.getElementById('strengthBar');
+  const confirmInput    = document.getElementById('confirm_password');
+  const passwordMatch   = document.getElementById('passwordMatch');
+
+  const reqs = {
+    length:    { el: document.getElementById('req-length'),    fn: p => p.length >= 8 },
+    uppercase: { el: document.getElementById('req-uppercase'), fn: p => /[A-Z]/.test(p) },
+    lowercase: { el: document.getElementById('req-lowercase'), fn: p => /[a-z]/.test(p) },
+    number:    { el: document.getElementById('req-number'),    fn: p => /[0-9]/.test(p) },
+  };
+
+  passwordInput.addEventListener('input', function() {
+    const p = this.value;
+    let met = 0;
+
+    Object.values(reqs).forEach(r => {
+      const ok = r.fn(p);
+      if (ok) met++;
+      const dot = r.el.querySelector('.req-dot');
+      r.el.style.color = ok ? '#16a34a' : 'var(--color-text-tertiary)';
+      dot.style.background = ok ? '#16a34a' : 'var(--color-border-default)';
+    });
+
+    // Strength bar
+    const pct   = [0, 25, 50, 75, 100][met];
+    const color = ['', '#ef4444', '#f59e0b', '#f59e0b', '#22c55e'][met];
+    strengthBar.style.width      = pct + '%';
+    strengthBar.style.background = color;
+
+    checkMatch();
+  });
+
+  function checkMatch() {
+    const p = passwordInput.value, c = confirmInput.value;
+    if (!c) { passwordMatch.textContent = ''; return; }
+    if (p === c) {
+      passwordMatch.textContent = '✓ Passwords match';
+      passwordMatch.style.color = '#16a34a';
+      setInputState(confirmInput, 'valid');
+    } else {
+      passwordMatch.textContent = '✗ Passwords do not match';
+      passwordMatch.style.color = 'var(--color-danger)';
+      setInputState(confirmInput, 'invalid');
+    }
+  }
+  confirmInput.addEventListener('input', checkMatch);
+
+
+  // ── Form submit validation ──
+  document.getElementById('registrationForm').addEventListener('submit', function(e) {
+    if (!inviteVerified) {
+      e.preventDefault();
+      inviteInput.focus();
+      showInviteStatus('error', '✗ Please enter and verify a valid invite code first.');
+      return;
+    }
+    if (!isUsernameValid) {
+      e.preventDefault();
+      usernameInput.focus();
+      return;
+    }
+    if (passwordInput.value !== confirmInput.value) {
+      e.preventDefault();
+      confirmInput.focus();
+      return;
+    }
+    if (passwordInput.value.length < 8) {
+      e.preventDefault();
+      passwordInput.focus();
+      return;
+    }
+
+    // Loading state
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Creating your account…';
+    btn.style.opacity = '0.75';
+  });
+</script>
+
+{% endblock %}

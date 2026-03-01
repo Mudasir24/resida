@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+
+{% block title %}Resida — Home{% endblock %}
+
+{% block content %}
+
+<!-- ════════════════════════════════════
+     HERO
+════════════════════════════════════ -->
+<section class="hero">
+  <!-- Background decorations -->
+  <div class="hero-bg-blob hero-bg-blob-1"></div>
+  <div class="hero-bg-blob hero-bg-blob-2"></div>
+
+  <div class="hero-inner">
+
+    <!-- Left: Content -->
+    <div class="hero-content">
+      <div class="hero-eyebrow fade-up" style="animation-delay:0s">
+        <span class="hero-eyebrow-dot"></span>
+        Apartment Management, Reimagined
+      </div>
+
+      <h1 class="fade-up" style="animation-delay:0.08s">
+        Your home,<br>
+        <em>beautifully</em><br>
+        managed.
+      </h1>
+
+      <p class="hero-desc fade-up" style="animation-delay:0.16s">
+        Resida brings residents, property managers, and administrators together in one calm, intuitive platform — built for the way people actually live.
+      </p>
+
+      <div class="hero-actions fade-up" style="animation-delay:0.24s">
+        <a href="{{ url_for('register_apartment') }}" class="btn btn-primary btn-lg">
+          Get Started Free
+        </a>
+        <a href="{{ url_for('apartments_directory') }}" class="btn btn-secondary btn-lg">
+          Browse Apartments
+        </a>
+      </div>
+
+      <div class="hero-trust fade-up" style="animation-delay:0.32s">
+        <span class="hero-trust-label">Trusted by communities</span>
+        <div class="hero-trust-items">
+          <span class="hero-trust-item">No setup fees</span>
+          <span class="hero-trust-item">Mobile friendly</span>
+          <span class="hero-trust-item">Secure by default</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Visual -->
+    <div class="hero-visual fade-in" style="animation-delay:0.1s">
+      <div class="hero-image-wrap">
+        <img
+          src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=900&h=680&fit=crop&q=80"
+          alt="Modern apartment building"
+          loading="eager"
+        >
+      </div>
+
+      <!-- Floating stat cards -->
+      <div class="hero-float-card float-card-1">
+        <span class="hero-float-card-icon">🏠</span>
+        <div>
+          <div class="hero-float-card-value">2,400+</div>
+          <div class="hero-float-card-label">Units managed</div>
+        </div>
+      </div>
+
+      <div class="hero-float-card float-card-2">
+        <span class="hero-float-card-icon">⭐</span>
+        <div>
+          <div class="hero-float-card-value">4.9 / 5</div>
+          <div class="hero-float-card-label">Resident rating</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════
+     STATS STRIP
+════════════════════════════════════ -->
+<div class="stats-strip">
+  <div class="stats-inner">
+    <div class="reveal stagger-1">
+      <div class="stat-item-value">120+</div>
+      <div class="stat-item-label">Apartment communities</div>
+    </div>
+    <div class="reveal stagger-2">
+      <div class="stat-item-value">2,400+</div>
+      <div class="stat-item-label">Residents served</div>
+    </div>
+    <div class="reveal stagger-3">
+      <div class="stat-item-value">98%</div>
+      <div class="stat-item-label">Uptime SLA</div>
+    </div>
+    <div class="reveal stagger-4">
+      <div class="stat-item-value">4.9★</div>
+      <div class="stat-item-label">Average rating</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════
+     FEATURES
+════════════════════════════════════ -->
+<section class="features-section">
+  <div>
+
+    <div class="section-header">
+      <span class="section-eyebrow">Platform Features</span>
+      <h2 class="section-title reveal">Everything your community needs</h2>
+      <p class="section-subtitle reveal stagger-2">From maintenance requests to rent payments, Resida handles the operational complexity so you can focus on building a great home environment.</p>
+    </div>
+
+    <div class="features-grid">
+
+      <div class="feature-card reveal stagger-1">
+        <div class="feature-icon">🏢</div>
+        <h3>Multi-tenant Support</h3>
+        <p>Each apartment community gets its own branded, isolated space — with custom settings, its own resident roster, and dedicated management tools.</p>
+        <img
+          src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=700&h=360&fit=crop&q=80"
+          alt="Modern apartment buildings"
+          class="feature-card-img"
+          loading="lazy"
+        >
+      </div>
+
+      <div class="feature-card reveal stagger-2">
+        <div class="feature-icon">👥</div>
+        <h3>Resident Management</h3>
+        <p>Manage residents, assign roles, control access, and keep a full directory — with role-based permissions for managers and admins.</p>
+        <img
+          src="https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=700&h=360&fit=crop&q=80"
+          alt="Community residents"
+          class="feature-card-img"
+          loading="lazy"
+        >
+      </div>
+
+      <div class="feature-card reveal stagger-3">
+        <div class="feature-icon">🔧</div>
+        <h3>Maintenance Tracking</h3>
+        <p>Residents submit requests in seconds. Managers triage, assign, and resolve — with priority levels and real-time status updates all the way through.</p>
+        <img
+          src="https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=700&h=360&fit=crop&q=80"
+          alt="Maintenance tools"
+          class="feature-card-img"
+          loading="lazy"
+        >
+      </div>
+
+      <div class="feature-card reveal stagger-4">
+        <div class="feature-icon">💳</div>
+        <h3>Payment Processing</h3>
+        <p>Handle rent collection, fees, and one-off charges with a full transaction history — clear, transparent, and accessible to residents at any time.</p>
+        <img
+          src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=700&h=360&fit=crop&q=80"
+          alt="Payment processing"
+          class="feature-card-img"
+          loading="lazy"
+        >
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ════════════════════════════════════
+     CTA BANNER
+════════════════════════════════════ -->
+<section style="padding: var(--space-24) 0;">
+  <div
+    style="
+      background: linear-gradient(135deg, var(--brand-400) 0%, var(--brand-600) 100%);
+      border-radius: var(--radius-2xl);
+      padding: var(--space-16) var(--space-12);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    "
+    class="reveal"
+  >
+    <!-- Subtle pattern overlay -->
+    <div style="
+      position: absolute; inset: 0; border-radius: inherit;
+      background-image: radial-gradient(circle at 20% 50%, rgba(255,255,255,0.08) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 20%, rgba(255,255,255,0.05) 0%, transparent 40%);
+      pointer-events: none;
+    "></div>
+
+    <div style="position: relative; z-index: 1; max-width: 540px; margin: 0 auto;">
+      <h2
+        style="
+          font-family: var(--font-display);
+          font-size: clamp(var(--text-2xl), 4vw, var(--text-4xl));
+          font-weight: 600;
+          color: #fff;
+          margin-bottom: var(--space-4);
+          letter-spacing: -0.02em;
+          line-height: 1.2;
+        "
+      >
+        Ready to simplify your property management?
+      </h2>
+      <p style="color: rgba(255,255,255,0.80); font-size: var(--text-lg); margin-bottom: var(--space-8); line-height: 1.6;">
+        Register your apartment community today — it takes under two minutes.
+      </p>
+      <div style="display: flex; gap: var(--space-3); justify-content: center; flex-wrap: wrap;">
+        <a
+          href="{{ url_for('register_apartment') }}"
+          style="
+            display: inline-flex; align-items: center; gap: var(--space-2);
+            padding: 13px var(--space-8);
+            background: #fff;
+            color: var(--brand-700);
+            border-radius: var(--radius-lg);
+            font-size: var(--text-base);
+            font-weight: 700;
+            text-decoration: none;
+            transition: all var(--ease-base);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            letter-spacing: 0.01em;
+          "
+          onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 30px rgba(0,0,0,0.2)'"
+          onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 20px rgba(0,0,0,0.15)'"
+        >
+          Register Your Apartment →
+        </a>
+        <a
+          href="{{ url_for('about') }}"
+          style="
+            display: inline-flex; align-items: center;
+            padding: 13px var(--space-8);
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            border-radius: var(--radius-lg);
+            font-size: var(--text-base);
+            font-weight: 600;
+            text-decoration: none;
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: all var(--ease-base);
+            letter-spacing: 0.01em;
+          "
+          onmouseover="this.style.background='rgba(255,255,255,0.22)'"
+          onmouseout="this.style.background='rgba(255,255,255,0.15)'"
+        >
+          Learn More
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% endblock %}

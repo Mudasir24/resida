@@ -1,0 +1,610 @@
+{% extends "apartment_base.html" %}
+
+{% block title %}Expenses — {{ apartment.name }}{% endblock %}
+
+{% block content %}
+
+{# ── Computed totals ── #}
+{% set total_amount  = expenses | map(attribute='amount') | sum %}
+{% set expense_count = expenses | length %}
+
+{# Top category by spend amount ── #}
+{% set ns = namespace(top_cat='—', top_amt=0) %}
+{% for cat, items in expenses | groupby('category') %}
+  {% set cat_total = items | map(attribute='amount') | sum %}
+  {% if cat_total > ns.top_amt %}
+    {% set ns.top_amt = cat_total %}
+    {% set ns.top_cat = cat %}
+  {% endif %}
+{% endfor %}
+
+{# Per-category counts for chip badges #}
+{% set cat_counts = namespace(maintenance=0, utilities=0, repairs=0, amenities=0, salaries=0, misc=0) %}
+{% for e in expenses %}
+  {% if   e.category == 'maintenance' %}{% set cat_counts.maintenance = cat_counts.maintenance + 1 %}
+  {% elif e.category == 'utilities'   %}{% set cat_counts.utilities   = cat_counts.utilities   + 1 %}
+  {% elif e.category == 'repairs'     %}{% set cat_counts.repairs     = cat_counts.repairs     + 1 %}
+  {% elif e.category == 'amenities'   %}{% set cat_counts.amenities   = cat_counts.amenities   + 1 %}
+  {% elif e.category == 'salaries'    %}{% set cat_counts.salaries    = cat_counts.salaries    + 1 %}
+  {% elif e.category == 'misc'        %}{% set cat_counts.misc        = cat_counts.misc        + 1 %}
+  {% endif %}
+{% endfor %}
+
+
+<!-- ══════════════════════════════════
+     PAGE HEADER
+══════════════════════════════════ -->
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-6);flex-wrap:wrap;margin-bottom:var(--space-8);">
+  <div>
+    <p style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Admin · {{ apartment.name }}</p>
+    <h1 style="font-family:var(--font-display);font-size:var(--text-4xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.03em;line-height:1.1;margin-bottom:var(--space-2);">Expenses</h1>
+    <p style="font-size:var(--text-base);color:var(--color-text-secondary);">Track and manage all apartment-related expenditure.</p>
+  </div>
+  <button onclick="openModal('addModal')" class="btn btn-primary">+ Add Expense</button>
+</div>
+
+
+<!-- ══════════════════════════════════
+     STAT STRIP  (4 cards)
+     FIX 1: min-width:0, overflow:hidden,
+             text-overflow:ellipsis,
+             letter-spacing 0.09→0.05em
+     FIX 2: id="stat-avg" + id="stat-topcat" added
+══════════════════════════════════ -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-3);margin-bottom:var(--space-8);">
+
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-xl);padding:var(--space-5) var(--space-5);min-width:0;">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Total This Month</div>
+    <div id="stat-total" style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:700;color:var(--color-text-primary);letter-spacing:-0.02em;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">₹{{ "{:,.0f}".format(total_amount) }}</div>
+  </div>
+
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-xl);padding:var(--space-5) var(--space-5);min-width:0;">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Total Entries</div>
+    <div id="stat-count" style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:700;color:var(--color-text-primary);letter-spacing:-0.02em;line-height:1.1;">{{ expense_count }}</div>
+  </div>
+
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-xl);padding:var(--space-5) var(--space-5);min-width:0;">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Avg Per Entry</div>
+    <div id="stat-avg" style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:700;color:var(--color-text-primary);letter-spacing:-0.02em;line-height:1.1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ('₹' + "{:,.0f}".format(total_amount / expense_count)) if expense_count > 0 else '—' }}</div>
+  </div>
+
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-xl);padding:var(--space-5) var(--space-5);min-width:0;">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Top Category</div>
+    <div id="stat-topcat" style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:700;color:var(--color-text-primary);letter-spacing:-0.01em;line-height:1.1;text-transform:capitalize;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ns.top_cat }}</div>
+  </div>
+
+</div>
+
+
+<!-- ══════════════════════════════════
+     FILTER BAR
+     FIX 4: count badges on chips
+══════════════════════════════════ -->
+<div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap;margin-bottom:var(--space-6);">
+
+  <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;" id="categoryChips">
+    {% for cat_id, cat_label, cat_count in [
+      ('all',         'All',         expense_count),
+      ('maintenance', 'Maintenance', cat_counts.maintenance),
+      ('utilities',   'Utilities',   cat_counts.utilities),
+      ('repairs',     'Repairs',     cat_counts.repairs),
+      ('amenities',   'Amenities',   cat_counts.amenities),
+      ('salaries',    'Salaries',    cat_counts.salaries),
+      ('misc',        'Misc',        cat_counts.misc),
+    ] %}
+    <button
+      data-cat="{{ cat_id }}"
+      onclick="filterCat('{{ cat_id }}')"
+      style="
+        padding:7px var(--space-4);
+        background:{% if loop.first %}var(--color-accent){% else %}var(--color-bg-surface){% endif %};
+        color:{% if loop.first %}#fff{% else %}var(--color-text-secondary){% endif %};
+        border:1px solid {% if loop.first %}var(--color-accent){% else %}var(--color-border-default){% endif %};
+        border-radius:var(--radius-full);
+        font-family:var(--font-body);font-size:var(--text-xs);font-weight:700;
+        cursor:pointer;white-space:nowrap;
+        transition:all var(--ease-fast);
+        display:inline-flex;align-items:center;gap:var(--space-2);
+      "
+    >
+      {{ cat_label }}
+      <span class="chip-badge" style="padding:1px 7px;border-radius:var(--radius-full);font-size:0.65rem;background:{% if loop.first %}rgba(255,255,255,0.25){% else %}var(--color-bg-subtle){% endif %};">{{ cat_count }}</span>
+    </button>
+    {% endfor %}
+  </div>
+
+  <select
+    onchange="filterByMonth(this.value)"
+    style="padding:7px var(--space-4);background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);cursor:pointer;transition:border-color var(--ease-fast);"
+    onfocus="this.style.borderColor='var(--color-accent)'" onblur="this.style.borderColor=''"
+  >
+    {% for month in available_months %}
+    <option value="{{ month.value }}" {% if selected_month == month.value %}selected{% endif %}>{{ month.label }}</option>
+    {% endfor %}
+  </select>
+
+</div>
+
+
+<!-- ══════════════════════════════════
+     EXPENSE CARDS  /  EMPTY STATE
+══════════════════════════════════ -->
+{% if expense_count == 0 %}
+
+<div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-2xl);padding:var(--space-20) var(--space-8);text-align:center;">
+  <div style="font-size:3.5rem;opacity:0.22;margin-bottom:var(--space-5);">💸</div>
+  <h2 style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-3);letter-spacing:-0.02em;">No expenses recorded</h2>
+  <p style="font-size:var(--text-base);color:var(--color-text-secondary);max-width:340px;margin:0 auto var(--space-7);line-height:1.6;">Start tracking apartment expenditure by adding the first entry.</p>
+  <button onclick="openModal('addModal')" class="btn btn-primary">+ Add First Expense</button>
+</div>
+
+{% else %}
+
+<!-- Per-filter empty state -->
+<div id="filterEmpty" style="display:none;text-align:center;padding:var(--space-12) var(--space-8);">
+  <div style="font-size:2.5rem;opacity:0.22;margin-bottom:var(--space-3);">🔍</div>
+  <p style="font-size:var(--text-sm);color:var(--color-text-tertiary);">No expenses in this category.</p>
+</div>
+
+{% set cat_colors = {
+  'maintenance': ('#3b82f6', 'rgba(59,130,246,0.10)', 'rgba(59,130,246,0.22)'),
+  'utilities':   ('#d97706', 'rgba(217,119,6,0.10)',  'rgba(217,119,6,0.22)'),
+  'repairs':     ('#ef4444', 'rgba(239,68,68,0.10)',   'rgba(239,68,68,0.22)'),
+  'amenities':   ('#8b5cf6', 'rgba(139,92,246,0.10)',  'rgba(139,92,246,0.22)'),
+  'salaries':    ('#10b981', 'rgba(16,185,129,0.10)',  'rgba(16,185,129,0.22)'),
+  'misc':        ('#6b7280', 'rgba(107,114,128,0.10)', 'rgba(107,114,128,0.22)'),
+} %}
+
+<div id="expensesGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--space-5);">
+  {% for expense in expenses %}
+  {% set c = cat_colors.get(expense.category, ('#C4A882','rgba(196,168,130,0.10)','rgba(196,168,130,0.22)')) %}
+
+  <div
+    class="exp-card"
+    data-cat="{{ expense.category }}"
+    data-id="{{ expense.id }}"
+    data-title="{{ expense.title }}"
+    data-amount="{{ expense.amount }}"
+    data-date="{{ expense.date }}"
+    data-cat-val="{{ expense.category }}"
+    data-desc="{{ expense.description or '' }}"
+    data-receipt="{{ expense.receipt_url or '' }}"
+    style="
+      background:var(--color-bg-surface);
+      border:1px solid var(--color-border-subtle);
+      border-left:3px solid {{ c[0] }};
+      border-radius:var(--radius-xl);
+      padding:var(--space-6);
+      transition:box-shadow var(--ease-fast),transform var(--ease-fast);
+      position:relative;
+    "
+    onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='var(--shadow-md)'"
+    onmouseout="this.style.transform='';this.style.boxShadow=''"
+  >
+
+    <!-- Receipt badge -->
+    {% if expense.receipt_url %}
+    <div style="position:absolute;top:var(--space-4);right:var(--space-4);display:inline-flex;align-items:center;gap:4px;padding:3px var(--space-3);background:rgba(34,197,94,0.10);border:1px solid rgba(34,197,94,0.22);border-radius:var(--radius-full);font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#16a34a;pointer-events:none;">📎 Receipt</div>
+    {% endif %}
+
+    <!-- Category badge -->
+    <div style="margin-bottom:var(--space-4);">
+      <span style="display:inline-block;padding:3px var(--space-3);background:{{ c[1] }};border:1px solid {{ c[2] }};border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;text-transform:capitalize;letter-spacing:0.05em;color:{{ c[0] }};">{{ expense.category }}</span>
+    </div>
+
+    <!-- Amount + Title -->
+    <div style="margin-bottom:var(--space-3);">
+      <div style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:700;color:var(--color-text-primary);letter-spacing:-0.02em;line-height:1.1;margin-bottom:var(--space-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">₹{{ "{:,.0f}".format(expense.amount) }}</div>
+      <div style="font-size:var(--text-sm);font-weight:600;color:var(--color-text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ expense.title }}</div>
+    </div>
+
+    <!-- Description — FIX 12: line-clamp:2 -->
+    {% if expense.description %}
+    <p style="font-size:var(--text-sm);color:var(--color-text-tertiary);line-height:1.6;margin-bottom:var(--space-4);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ expense.description }}</p>
+    {% endif %}
+
+    <!-- Footer: date + actions -->
+    <!-- FIX 11: delete button added  FIX 13: removed strftime filter -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding-top:var(--space-4);border-top:1px solid var(--color-border-subtle);gap:var(--space-2);">
+      <span style="font-size:var(--text-xs);color:var(--color-text-tertiary);font-weight:500;white-space:nowrap;flex-shrink:0;">📅 {{ expense.date }}</span>
+      <div style="display:flex;gap:var(--space-2);flex-shrink:0;">
+        {% if expense.receipt_url %}
+        <button onclick="viewReceipt('{{ expense.receipt_url }}','{{ expense.title }}')" style="padding:5px var(--space-3);background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.22);border-radius:var(--radius-sm);font-family:var(--font-body);font-size:var(--text-xs);font-weight:600;color:#16a34a;cursor:pointer;transition:background var(--ease-fast);" onmouseover="this.style.background='rgba(34,197,94,0.18)'" onmouseout="this.style.background='rgba(34,197,94,0.08)'">📄</button>
+        {% endif %}
+        <button onclick="editExpense('{{ expense.id }}')" style="padding:5px var(--space-3);background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-sm);font-family:var(--font-body);font-size:var(--text-xs);font-weight:600;color:var(--color-text-secondary);cursor:pointer;transition:all var(--ease-fast);" onmouseover="this.style.borderColor='var(--color-accent-border)';this.style.color='var(--color-accent)'" onmouseout="this.style.borderColor='';this.style.color=''">✏️</button>
+        <button onclick="deleteExpense('{{ expense.id }}','{{ expense.title }}')" style="padding:5px var(--space-3);background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.18);border-radius:var(--radius-sm);font-family:var(--font-body);font-size:var(--text-xs);font-weight:600;color:#ef4444;cursor:pointer;transition:background var(--ease-fast);" onmouseover="this.style.background='rgba(239,68,68,0.15)'" onmouseout="this.style.background='rgba(239,68,68,0.07)'">🗑</button>
+      </div>
+    </div>
+
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+
+<!-- ══════════════════════════════════
+     MODAL: Add Expense
+     FIX 7: flex-start overlay
+     FIX 8: sticky header
+     FIX 10: body overflow lock
+══════════════════════════════════ -->
+<div id="addModal"
+  style="display:none;position:fixed;inset:0;z-index:1040;background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);align-items:flex-start;justify-content:center;padding:var(--page-padding);padding-top:max(var(--space-8),4vh);overflow-y:auto;"
+  onclick="if(event.target===this)closeModal('addModal')"
+>
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-2xl);width:100%;max-width:500px;box-shadow:var(--shadow-2xl);animation:fadeUp 0.25s cubic-bezier(0.25,0.46,0.45,0.94) both;margin-bottom:var(--space-8);">
+
+    <!-- Sticky header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-6) var(--space-8);border-bottom:1px solid var(--color-border-subtle);background:var(--color-bg-subtle);border-radius:var(--radius-2xl) var(--radius-2xl) 0 0;position:sticky;top:0;z-index:2;">
+      <div>
+        <h2 style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.02em;margin:0;">Add Expense</h2>
+        <p style="font-size:var(--text-sm);color:var(--color-text-tertiary);margin-top:2px;">Record a new apartment expenditure</p>
+      </div>
+      <button onclick="closeModal('addModal')" style="width:32px;height:32px;background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-md);cursor:pointer;font-size:var(--text-sm);color:var(--color-text-secondary);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background var(--ease-fast);" onmouseover="this.style.background='var(--color-bg-muted)'" onmouseout="this.style.background=''">✕</button>
+    </div>
+
+    <form method="POST" action="{{ url_for('admin_expenses', slug=apartment.slug) }}" enctype="multipart/form-data" style="padding:var(--space-7) var(--space-8) var(--space-8);">
+
+      <div style="margin-bottom:var(--space-5);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Title <span style="color:var(--color-danger)">*</span></label>
+        <input type="text" name="title" placeholder="e.g. Monthly Maintenance" required
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''">
+      </div>
+
+      <div style="margin-bottom:var(--space-5);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Amount (₹) <span style="color:var(--color-danger)">*</span></label>
+        <input type="number" name="amount" placeholder="5000.00" step="0.01" min="0" required
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''">
+      </div>
+
+      <div style="margin-bottom:var(--space-5);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Date <span style="color:var(--color-danger)">*</span></label>
+        <input type="date" name="date" required value="{{ today }}"
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''">
+      </div>
+
+      <div style="margin-bottom:var(--space-5);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Category <span style="color:var(--color-danger)">*</span></label>
+        <select name="category" required
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)'" onblur="this.style.borderColor=''">
+          <option value="maintenance">🔧 Maintenance</option>
+          <option value="utilities">💡 Utilities</option>
+          <option value="repairs">🛠️ Repairs</option>
+          <option value="salaries">👨‍💼 Salaries</option>
+          <option value="amenities">🏊 Amenities</option>
+          <option value="misc">📝 Miscellaneous</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:var(--space-5);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Description</label>
+        <textarea name="description" rows="3" placeholder="Brief description of this expense"
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);color:var(--color-text-primary);resize:vertical;transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''"></textarea>
+      </div>
+
+      <div style="margin-bottom:var(--space-7);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Receipt <span style="font-size:var(--text-xs);font-weight:400;color:var(--color-text-tertiary);">(optional)</span></label>
+        <div id="dropzone-add"
+          style="border:1.5px dashed var(--color-border-default);border-radius:var(--radius-md);padding:var(--space-6);text-align:center;background:var(--color-bg-subtle);transition:border-color var(--ease-fast),background var(--ease-fast);cursor:pointer;"
+          ondragover="event.preventDefault();this.style.borderColor='var(--color-accent)';this.style.background='var(--color-accent-subtle)'"
+          ondragleave="this.style.borderColor='';this.style.background='var(--color-bg-subtle)'"
+          ondrop="handleDrop(event,'receipt-add');this.style.borderColor='';this.style.background='var(--color-bg-subtle)'"
+          onclick="document.getElementById('receipt-add').click()"
+        >
+          <div style="font-size:1.5rem;margin-bottom:var(--space-2);opacity:0.4;">📎</div>
+          <p id="dropzone-add-label" style="font-size:var(--text-sm);color:var(--color-text-secondary);margin:0;">Drag & drop or <span style="color:var(--color-accent);font-weight:600;cursor:pointer;">browse</span></p>
+          <p style="font-size:var(--text-xs);color:var(--color-text-tertiary);margin-top:var(--space-1);">Image or PDF · max 10 MB</p>
+          <input type="file" name="receipt" id="receipt-add" accept="image/*,.pdf" style="display:none;" onchange="showFilename(this,'dropzone-add-label')">
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block" style="font-weight:700;">Add Expense →</button>
+    </form>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     MODAL: Edit Expense
+     FIX 7+8: same overlay + sticky header
+     FIX 9: explicit name= attrs (no Jinja mangling)
+══════════════════════════════════ -->
+<div id="editModal"
+  style="display:none;position:fixed;inset:0;z-index:1040;background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);align-items:flex-start;justify-content:center;padding:var(--page-padding);padding-top:max(var(--space-8),4vh);overflow-y:auto;"
+  onclick="if(event.target===this)closeModal('editModal')"
+>
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-2xl);width:100%;max-width:500px;box-shadow:var(--shadow-2xl);animation:fadeUp 0.25s cubic-bezier(0.25,0.46,0.45,0.94) both;margin-bottom:var(--space-8);">
+
+    <!-- Sticky header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-6) var(--space-8);border-bottom:1px solid var(--color-border-subtle);background:var(--color-bg-subtle);border-radius:var(--radius-2xl) var(--radius-2xl) 0 0;position:sticky;top:0;z-index:2;">
+      <div>
+        <h2 style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.02em;margin:0;">Edit Expense</h2>
+        <p style="font-size:var(--text-sm);color:var(--color-text-tertiary);margin-top:2px;">Update the details for this entry</p>
+      </div>
+      <button onclick="closeModal('editModal')" style="width:32px;height:32px;background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-md);cursor:pointer;font-size:var(--text-sm);color:var(--color-text-secondary);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background var(--ease-fast);" onmouseover="this.style.background='var(--color-bg-muted)'" onmouseout="this.style.background=''">✕</button>
+    </div>
+
+    <form method="POST" id="editForm" enctype="multipart/form-data" style="padding:var(--space-7) var(--space-8) var(--space-8);">
+      <input type="hidden" name="expense_id" id="edit_id">
+
+      <div style="margin-bottom:var(--space-5);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Title <span style="color:var(--color-danger)">*</span></label>
+        <input type="text" id="edit_title" name="title" placeholder="e.g. Monthly Maintenance" required
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''">
+      </div>
+
+      <div style="margin-bottom:var(--space-5);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Amount (₹) <span style="color:var(--color-danger)">*</span></label>
+        <input type="number" id="edit_amount" name="amount" placeholder="5000.00" step="0.01" min="0" required
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''">
+      </div>
+
+      <div style="margin-bottom:var(--space-5);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Date <span style="color:var(--color-danger)">*</span></label>
+        <input type="date" id="edit_date" name="date" required
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''">
+      </div>
+
+      <div style="margin-bottom:var(--space-5);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Category <span style="color:var(--color-danger)">*</span></label>
+        <select id="edit_category" name="category" required
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)'" onblur="this.style.borderColor=''">
+          <option value="maintenance">🔧 Maintenance</option>
+          <option value="utilities">💡 Utilities</option>
+          <option value="repairs">🛠️ Repairs</option>
+          <option value="salaries">👨‍💼 Salaries</option>
+          <option value="amenities">🏊 Amenities</option>
+          <option value="misc">📝 Miscellaneous</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:var(--space-5);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Description</label>
+        <textarea id="edit_desc" name="description" rows="3"
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);color:var(--color-text-primary);resize:vertical;transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''"></textarea>
+      </div>
+
+      <div style="margin-bottom:var(--space-7);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Receipt</label>
+        <div id="edit_receipt_current" style="margin-bottom:var(--space-3);font-size:var(--text-sm);color:var(--color-text-tertiary);"></div>
+        <div id="dropzone-edit"
+          style="border:1.5px dashed var(--color-border-default);border-radius:var(--radius-md);padding:var(--space-5);text-align:center;background:var(--color-bg-subtle);cursor:pointer;transition:border-color var(--ease-fast);"
+          onclick="document.getElementById('receipt-edit').click()"
+        >
+          <p id="dropzone-edit-label" style="font-size:var(--text-sm);color:var(--color-text-secondary);margin:0;"><span style="color:var(--color-accent);font-weight:600;cursor:pointer;">Upload new receipt</span> to replace</p>
+          <p style="font-size:var(--text-xs);color:var(--color-text-tertiary);margin-top:var(--space-1);">Leave empty to keep current</p>
+          <input type="file" name="receipt" id="receipt-edit" accept="image/*,.pdf" style="display:none;" onchange="showFilename(this,'dropzone-edit-label')">
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block" style="font-weight:700;">Save Changes →</button>
+    </form>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     MODAL: View Receipt
+     FIX 5: max-height:65vh on img
+     FIX 6: PDF detection + fallback
+══════════════════════════════════ -->
+<div id="receiptModal"
+  style="display:none;position:fixed;inset:0;z-index:1040;background:rgba(0,0,0,0.80);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:var(--page-padding);"
+  onclick="if(event.target===this)closeModal('receiptModal')"
+>
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-2xl);padding:var(--space-7) var(--space-8);width:100%;max-width:640px;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow-2xl);">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-5);">
+      <h2 id="receiptTitle" style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.01em;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;"></h2>
+      <button onclick="closeModal('receiptModal')" style="width:32px;height:32px;background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-md);cursor:pointer;font-size:var(--text-sm);color:var(--color-text-secondary);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-left:var(--space-4);transition:background var(--ease-fast);" onmouseover="this.style.background='var(--color-bg-muted)'" onmouseout="this.style.background=''">✕</button>
+    </div>
+    <!-- FIX 5: max-height on image -->
+    <img id="receiptImg" src="" alt="Receipt" style="width:100%;max-height:65vh;object-fit:contain;border-radius:var(--radius-lg);border:1px solid var(--color-border-subtle);display:block;margin-bottom:var(--space-5);background:var(--color-bg-subtle);">
+    <!-- FIX 6: PDF fallback note -->
+    <div id="receiptPdfNote" style="display:none;text-align:center;padding:var(--space-8);background:var(--color-bg-subtle);border-radius:var(--radius-lg);margin-bottom:var(--space-5);">
+      <div style="font-size:2rem;margin-bottom:var(--space-3);">📄</div>
+      <p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin:0;">This receipt is a PDF — use the button below to view it.</p>
+    </div>
+    <a id="receiptOpen" href="" target="_blank" style="display:inline-flex;align-items:center;gap:var(--space-2);padding:9px var(--space-5);background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-md);font-size:var(--text-sm);font-weight:600;color:var(--color-text-secondary);text-decoration:none;transition:all var(--ease-fast);" onmouseover="this.style.borderColor='var(--color-accent-border)';this.style.color='var(--color-accent)'" onmouseout="this.style.borderColor='';this.style.color=''">↗ Open in new tab</a>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     MODAL: Delete Confirm  (FIX 11)
+══════════════════════════════════ -->
+<div id="deleteModal"
+  style="display:none;position:fixed;inset:0;z-index:1050;background:rgba(0,0,0,0.60);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:var(--page-padding);"
+  onclick="if(event.target===this)closeModal('deleteModal')"
+>
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-2xl);padding:var(--space-8);width:100%;max-width:380px;box-shadow:var(--shadow-2xl);text-align:center;animation:fadeUp 0.2s ease both;">
+    <div style="font-size:2.2rem;margin-bottom:var(--space-4);">🗑</div>
+    <h3 style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.01em;margin-bottom:var(--space-3);">Delete expense?</h3>
+    <p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-bottom:var(--space-7);line-height:1.6;">"<span id="deleteExpenseName" style="font-weight:700;color:var(--color-text-primary);"></span>" will be permanently removed.</p>
+    <div style="display:flex;gap:var(--space-3);">
+      <button onclick="closeModal('deleteModal')" style="flex:1;padding:10px;background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);font-weight:600;color:var(--color-text-secondary);cursor:pointer;transition:all var(--ease-fast);" onmouseover="this.style.color='var(--color-text-primary)'" onmouseout="this.style.color=''">Cancel</button>
+      <form id="deleteForm" method="POST" style="flex:1;">
+        <button type="submit" style="width:100%;padding:10px;background:rgba(239,68,68,0.09);border:1px solid rgba(239,68,68,0.28);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);font-weight:700;color:#ef4444;cursor:pointer;transition:background var(--ease-fast);" onmouseover="this.style.background='rgba(239,68,68,0.18)'" onmouseout="this.style.background='rgba(239,68,68,0.09)'">Delete</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ── Styles ── -->
+<style>
+  @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+  @media (max-width:560px) { #expensesGrid { grid-template-columns:1fr !important; } }
+</style>
+
+
+<!-- ── Scripts ── -->
+<script>
+  // ── Modal helpers — FIX 10: body overflow ──
+  function openModal(id)  { document.getElementById(id).style.display='flex'; document.body.style.overflow='hidden'; }
+  function closeModal(id) { document.getElementById(id).style.display='none';  document.body.style.overflow=''; }
+  document.addEventListener('keydown', e => {
+    if (e.key==='Escape') ['addModal','editModal','receiptModal','deleteModal'].forEach(closeModal);
+  });
+
+  // ══════════════════════════════════════
+  //  CATEGORY FILTER
+  //  FIX 3+4: updates ALL 4 stats + badges
+  // ══════════════════════════════════════
+  const CAT_LABEL_MAP = {
+    maintenance:'Maintenance', utilities:'Utilities', repairs:'Repairs',
+    amenities:'Amenities', salaries:'Salaries', misc:'Misc'
+  };
+
+  function filterCat(cat) {
+    // Update chip styles
+    document.querySelectorAll('#categoryChips button').forEach(btn => {
+      const active = btn.dataset.cat === cat;
+      btn.style.background  = active ? 'var(--color-accent)'  : 'var(--color-bg-surface)';
+      btn.style.color       = active ? '#fff'                 : 'var(--color-text-secondary)';
+      btn.style.borderColor = active ? 'var(--color-accent)'  : 'var(--color-border-default)';
+      const badge = btn.querySelector('.chip-badge');
+      if (badge) badge.style.background = active ? 'rgba(255,255,255,0.25)' : 'var(--color-bg-subtle)';
+    });
+
+    let total = 0, count = 0;
+    const catAmounts = {};
+
+    document.querySelectorAll('.exp-card').forEach(card => {
+      const match = cat === 'all' || card.dataset.cat === cat;
+      card.style.display = match ? '' : 'none';
+      if (match) {
+        const amt = parseFloat(card.dataset.amount) || 0;
+        total += amt;
+        count++;
+        catAmounts[card.dataset.cat] = (catAmounts[card.dataset.cat] || 0) + amt;
+      }
+    });
+
+    // Filter empty state
+    const empty = document.getElementById('filterEmpty');
+    if (empty) empty.style.display = count === 0 ? 'block' : 'none';
+
+    // Stat: Total
+    document.getElementById('stat-total').textContent =
+      '₹' + total.toLocaleString('en-IN', { maximumFractionDigits: 0 });
+
+    // Stat: Count
+    document.getElementById('stat-count').textContent = count;
+
+    // Stat: Avg (FIX 3)
+    const avgEl = document.getElementById('stat-avg');
+    avgEl.textContent = count > 0
+      ? '₹' + Math.round(total / count).toLocaleString('en-IN')
+      : '—';
+
+    // Stat: Top Category (FIX 3)
+    const topEl = document.getElementById('stat-topcat');
+    if (cat !== 'all') {
+      topEl.textContent = CAT_LABEL_MAP[cat] || cat;
+    } else {
+      let topCat = '—', topAmt = 0;
+      for (const [c, amt] of Object.entries(catAmounts)) {
+        if (amt > topAmt) { topAmt = amt; topCat = c; }
+      }
+      topEl.textContent = CAT_LABEL_MAP[topCat] || topCat;
+    }
+  }
+
+  // ── Month filter (server-side) ──
+  function filterByMonth(val) {
+    const params = new URLSearchParams(window.location.search);
+    params.set('month', val);
+    window.location.search = params.toString();
+  }
+
+  // ── View Receipt — FIX 5+6 ──
+  function viewReceipt(url, title) {
+    document.getElementById('receiptTitle').textContent = title;
+    document.getElementById('receiptOpen').href = url;
+    const img     = document.getElementById('receiptImg');
+    const pdfNote = document.getElementById('receiptPdfNote');
+    const isPdf   = url.toLowerCase().endsWith('.pdf');
+    if (isPdf) {
+      img.style.display     = 'none';
+      pdfNote.style.display = 'block';
+    } else {
+      img.src               = url;
+      img.style.display     = 'block';
+      pdfNote.style.display = 'none';
+    }
+    openModal('receiptModal');
+  }
+
+  // ── Edit Expense ──
+  function editExpense(id) {
+    const card = document.querySelector(`.exp-card[data-id="${id}"]`);
+    if (!card) return;
+    document.getElementById('edit_id').value       = id;
+    document.getElementById('edit_title').value    = card.dataset.title  || '';
+    document.getElementById('edit_amount').value   = card.dataset.amount || '';
+    document.getElementById('edit_date').value     = card.dataset.date   || '';
+    document.getElementById('edit_category').value = card.dataset.catVal || '';
+    document.getElementById('edit_desc').value     = card.dataset.desc   || '';
+    document.getElementById('editForm').action     = `/apartments/{{ apartment.slug }}/admin/expenses/${id}/edit`;
+    const receiptDiv = document.getElementById('edit_receipt_current');
+    const receipt    = card.dataset.receipt;
+    receiptDiv.innerHTML = receipt
+      ? `<a href="${receipt}" target="_blank" style="display:inline-flex;align-items:center;gap:5px;color:var(--color-accent);font-weight:600;font-size:var(--text-sm);text-decoration:none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">📄 View current receipt</a>`
+      : `<span style="color:var(--color-text-tertiary);font-size:var(--text-sm);">No receipt uploaded</span>`;
+    openModal('editModal');
+  }
+
+  // ── Delete Expense — FIX 11 ──
+  function deleteExpense(id, title) {
+    document.getElementById('deleteExpenseName').textContent = title;
+    document.getElementById('deleteForm').action =
+      `/apartments/{{ apartment.slug }}/admin/expenses/${id}/delete`;
+    openModal('deleteModal');
+  }
+
+  // ── File drop / browse helpers ──
+  function showFilename(input, labelId) {
+    const name  = input.files[0]?.name;
+    const label = document.getElementById(labelId);
+    if (name && label) {
+      label.innerHTML = `📎 <strong style="color:var(--color-text-primary)">${name}</strong> <span style="color:var(--color-text-tertiary);font-weight:400;">selected</span>`;
+    }
+  }
+
+  function handleDrop(e, inputId) {
+    e.preventDefault();
+    const input = document.getElementById(inputId);
+    if (e.dataTransfer.files.length) {
+      const dt = new DataTransfer();
+      dt.items.add(e.dataTransfer.files[0]);
+      input.files = dt.files;
+      // Trigger filename display for the correct label
+      const labelId = inputId === 'receipt-add' ? 'dropzone-add-label' : 'dropzone-edit-label';
+      showFilename(input, labelId);
+    }
+  }
+
+  // FIX 14: prevent browser navigating when file dropped outside zone
+  window.addEventListener('dragover', e => e.preventDefault());
+  window.addEventListener('drop',     e => e.preventDefault());
+</script>
+
+{% endblock %}

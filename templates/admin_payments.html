@@ -1,0 +1,531 @@
+{% extends "apartment_base.html" %}
+
+{% block title %}Payments — {{ apartment.name }}{% endblock %}
+
+{% block content %}
+
+{# ── Computed vars ── #}
+{% set total_bills       = bills | length %}
+{% set pending_bills     = bills | selectattr('status','equalto','pending')   | list | length %}
+{% set paid_bills        = bills | selectattr('status','equalto','paid')      | list | length %}
+{% set unconfirmed_count = pending_confirmations | length %}
+{% set active_pay_count  = payments | selectattr('is_active','equalto',true)  | list | length %}
+{% set collection_rate   = ((paid_bills / total_bills * 100) | round(0) | int) if total_bills > 0 else 0 %}
+
+
+<!-- ══════════════════════════════════
+     PAGE HEADER
+══════════════════════════════════ -->
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-6);flex-wrap:wrap;margin-bottom:var(--space-8);">
+  <div>
+    <p style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Admin · {{ apartment.name }}</p>
+    <h1 style="font-family:var(--font-display);font-size:var(--text-4xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.03em;line-height:1.1;margin-bottom:var(--space-2);">Payments</h1>
+    <p style="font-size:var(--text-base);color:var(--color-text-secondary);">Manage dues, bills, and payment confirmations.</p>
+  </div>
+  <button onclick="openModal('addPayModal')" class="btn btn-primary">+ New Payment</button>
+</div>
+
+
+<!-- ══════════════════════════════════
+     STAT STRIP
+══════════════════════════════════ -->
+<div class="stat-strip" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-3);margin-bottom:var(--space-5);">
+  {% for label, val, color, prefix in [
+    ('Total Due',       total_due,        '#ef4444',              '₹'),
+    ('Overdue',         total_overdue,    '#f97316',              '₹'),
+    ('Collected',       total_collected,  '#16a34a',              '₹'),
+    ('Pending',         total_pending,    'var(--color-accent)',  '₹'),
+    ('Total Bills',     total_bills,      'var(--color-text-primary)', ''),
+    ('Unconfirmed',     unconfirmed_count,'#f97316',              ''),
+  ] %}
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-xl);padding:var(--space-5) var(--space-5);min-width:0;">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);line-height:1.3;">{{ label }}</div>
+    <div style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:700;color:{{ color }};letter-spacing:-0.02em;line-height:1.2;word-break:break-word;overflow-wrap:anywhere;">{{ prefix }}{% if prefix %}{{ "{:,.0f}".format(val) }}{% else %}{{ val }}{% endif %}</div>
+  </div>
+  {% endfor %}
+</div>
+
+
+<!-- ══════════════════════════════════
+     COLLECTION PROGRESS BAR
+══════════════════════════════════ -->
+{% if total_bills > 0 %}
+<div style="
+  background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-xl);
+  padding:var(--space-5) var(--space-7);margin-bottom:var(--space-8);
+  display:flex;align-items:center;gap:var(--space-6);flex-wrap:wrap;
+">
+  <div style="flex:1;min-width:200px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-2);">
+      <span style="font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);white-space:nowrap;">Collection Progress</span>
+      <span style="font-size:var(--text-xs);font-weight:700;color:var(--color-text-tertiary);white-space:nowrap;">{{ paid_bills }} / {{ total_bills }} confirmed</span>
+    </div>
+    <div style="height:8px;background:var(--color-bg-subtle);border-radius:var(--radius-full);overflow:hidden;">
+      <div style="height:100%;width:{{ collection_rate }}%;border-radius:var(--radius-full);transition:width 1.2s cubic-bezier(0.34,1.56,0.64,1);background:{% if collection_rate >= 80 %}#16a34a{% elif collection_rate >= 50 %}var(--color-accent){% else %}#ef4444{% endif %};"></div>
+    </div>
+  </div>
+  <div style="font-family:var(--font-display);font-size:var(--text-3xl);font-weight:700;letter-spacing:-0.03em;flex-shrink:0;min-width:64px;text-align:right;color:{% if collection_rate >= 80 %}#16a34a{% elif collection_rate >= 50 %}var(--color-accent){% else %}#ef4444{% endif %};">{{ collection_rate }}%</div>
+</div>
+{% endif %}
+
+
+<!-- ══════════════════════════════════
+     PENDING CONFIRMATIONS
+══════════════════════════════════ -->
+{% if pending_confirmations %}
+<div style="background:rgba(249,115,22,0.06);border:1px solid rgba(249,115,22,0.22);border-left:3px solid #f97316;border-radius:var(--radius-xl);padding:var(--space-6) var(--space-7);margin-bottom:var(--space-8);">
+  <div style="display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-5);">
+    <div style="width:36px;height:36px;flex-shrink:0;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.25);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:1rem;">⚠️</div>
+    <div>
+      <h3 style="font-family:var(--font-display);font-size:var(--text-lg);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.01em;">{{ unconfirmed_count }} Payment{{ 's' if unconfirmed_count != 1 }} Need Confirmation</h3>
+      <p style="font-size:var(--text-sm);color:var(--color-text-secondary);margin-top:1px;">Residents have uploaded proof — review and confirm</p>
+    </div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:var(--space-4);">
+    {% for bill in pending_confirmations %}
+    <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-lg);overflow:hidden;">
+      <div style="height:3px;background:linear-gradient(90deg,#f97316,#fbbf24);"></div>
+      <div style="padding:var(--space-5);">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-3);margin-bottom:var(--space-4);">
+          <div style="min-width:0;flex:1;">
+            <div style="font-size:var(--text-sm);font-weight:700;color:var(--color-text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ bill.resident_name }}</div>
+            <div style="font-size:var(--text-xs);color:var(--color-text-tertiary);margin-top:1px;">Flat {{ bill.flat_number }}</div>
+          </div>
+          <div style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:700;color:#ef4444;flex-shrink:0;white-space:nowrap;">₹{{ "{:,.0f}".format(bill.amount) }}</div>
+        </div>
+        <div style="padding:var(--space-3) var(--space-4);background:var(--color-bg-subtle);border-radius:var(--radius-md);margin-bottom:var(--space-4);border:1px solid var(--color-border-subtle);">
+          <div style="font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-1);">{{ bill.title }}</div>
+          {% if bill.due_date %}<div style="font-size:var(--text-xs);color:var(--color-text-tertiary);">Due {{ bill.due_date }}</div>{% endif %}
+          {% if bill.paid_at %}<div style="font-size:var(--text-xs);color:#16a34a;margin-top:1px;">Paid {{ bill.paid_at }}</div>{% endif %}
+          {% if bill.proof_url %}<a href="{{ bill.proof_url }}" target="_blank" style="display:inline-flex;align-items:center;gap:4px;margin-top:var(--space-2);font-size:var(--text-xs);font-weight:700;color:var(--color-accent);text-decoration:none;">📎 View proof →</a>{% endif %}
+        </div>
+        <form method="POST" action="{{ url_for('confirm_bill', slug=apartment.slug, bill_id=bill.id) }}">
+          <button type="submit" style="width:100%;padding:9px;background:#16a34a;color:#fff;border:none;border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);font-weight:700;cursor:pointer;transition:opacity var(--ease-fast);" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">✓ Confirm Payment</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+
+<!-- ══════════════════════════════════
+     PAYMENT TYPES TABLE
+══════════════════════════════════ -->
+<div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-xl);overflow:clip;margin-bottom:var(--space-8);">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-6) var(--space-7);border-bottom:1px solid var(--color-border-subtle);background:var(--color-bg-subtle);">
+    <div>
+      <h2 style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.01em;">Payment Types</h2>
+      <p style="font-size:var(--text-xs);color:var(--color-text-tertiary);margin-top:1px;">{{ active_pay_count }} active</p>
+    </div>
+    <button onclick="openModal('addPayModal')" style="display:inline-flex;align-items:center;gap:var(--space-2);padding:7px var(--space-4);background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);font-weight:600;color:var(--color-text-secondary);cursor:pointer;transition:all var(--ease-fast);" onmouseover="this.style.borderColor='var(--color-accent-border)';this.style.color='var(--color-accent)'" onmouseout="this.style.borderColor='';this.style.color=''">+ Add type</button>
+  </div>
+  {% if payments %}
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr>{% for col in ['Title','Amount','Frequency','Distribution','Due Date','Status'] %}<th style="padding:var(--space-3) var(--space-5);text-align:left;font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--color-text-tertiary);background:var(--color-bg-subtle);border-bottom:1px solid var(--color-border-subtle);white-space:nowrap;">{{ col }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for p in payments %}
+        <tr style="border-bottom:{{ '1px solid var(--color-border-subtle)' if not loop.last else 'none' }};transition:background var(--ease-fast);" onmouseover="this.style.background='var(--color-bg-subtle)'" onmouseout="this.style.background=''">
+          <td style="padding:var(--space-4) var(--space-5);"><div style="font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);">{{ p.title }}</div>{% if p.description %}<div style="font-size:var(--text-xs);color:var(--color-text-tertiary);margin-top:2px;">{{ p.description }}</div>{% endif %}</td>
+          <td style="padding:var(--space-4) var(--space-5);"><span style="font-family:var(--font-display);font-size:var(--text-base);font-weight:700;color:var(--color-text-primary);">₹{{ "{:,.0f}".format(p.amount) }}</span></td>
+          <td style="padding:var(--space-4) var(--space-5);"><span style="display:inline-block;padding:3px var(--space-3);background:rgba(59,130,246,0.10);border:1px solid rgba(59,130,246,0.22);border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;color:#3b82f6;text-transform:capitalize;">{{ p.frequency.replace('_',' ').title() }}</span></td>
+          <td style="padding:var(--space-4) var(--space-5);"><span style="display:inline-block;padding:3px var(--space-3);background:rgba(139,92,246,0.10);border:1px solid rgba(139,92,246,0.22);border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;color:#8b5cf6;text-transform:capitalize;">{{ p.distribution.title() }}</span></td>
+          <td style="padding:var(--space-4) var(--space-5);font-size:var(--text-sm);color:var(--color-text-secondary);">{{ p.due_date or '—' }}</td>
+          <td style="padding:var(--space-4) var(--space-5);">{% if p.is_active %}<span style="display:inline-flex;align-items:center;gap:4px;padding:3px var(--space-3);background:rgba(34,197,94,0.10);border:1px solid rgba(34,197,94,0.22);border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;color:#16a34a;"><span style="width:5px;height:5px;background:#16a34a;border-radius:50%;"></span>Active</span>{% else %}<span style="display:inline-block;padding:3px var(--space-3);background:var(--color-bg-subtle);border:1px solid var(--color-border-default);border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;color:var(--color-text-tertiary);">Inactive</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="text-align:center;padding:var(--space-16) var(--space-8);"><div style="font-size:3rem;opacity:0.22;margin-bottom:var(--space-4);">📋</div><p style="font-size:var(--text-base);color:var(--color-text-tertiary);">No payment types yet.</p></div>
+  {% endif %}
+</div>
+
+
+<!-- ══════════════════════════════════
+     BILLS TABLE
+══════════════════════════════════ -->
+<div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-xl);overflow:clip;">
+  <div style="padding:var(--space-6) var(--space-7);border-bottom:1px solid var(--color-border-subtle);background:var(--color-bg-subtle);">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap;margin-bottom:var(--space-4);">
+      <div>
+        <h2 style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.01em;">Resident Bills</h2>
+        <p style="font-size:var(--text-xs);color:var(--color-text-tertiary);margin-top:1px;" id="billsCount">{{ total_bills }} total</p>
+      </div>
+    </div>
+    <div style="display:flex;gap:var(--space-2);flex-wrap:wrap;" id="billFilterTabs">
+      {% for fid, flabel, fcount in [('all','All',total_bills),('pending','Pending',pending_bills),('paid','Paid',paid_bills),('unconfirmed','Unconfirmed',unconfirmed_count)] %}
+      <button data-filter="{{ fid }}" onclick="filterBills('{{ fid }}')" style="padding:7px var(--space-4);background:{% if loop.first %}var(--color-accent){% else %}var(--color-bg-surface){% endif %};color:{% if loop.first %}#fff{% else %}var(--color-text-secondary){% endif %};border:1px solid {% if loop.first %}var(--color-accent){% else %}var(--color-border-default){% endif %};border-radius:var(--radius-full);font-family:var(--font-body);font-size:var(--text-xs);font-weight:700;cursor:pointer;white-space:nowrap;transition:all var(--ease-fast);display:inline-flex;align-items:center;gap:var(--space-2);">{{ flabel }} <span style="padding:1px 7px;border-radius:var(--radius-full);font-size:0.65rem;background:{% if loop.first %}rgba(255,255,255,0.25){% else %}var(--color-bg-subtle){% endif %};">{{ fcount }}</span></button>
+      {% endfor %}
+    </div>
+  </div>
+  {% if bills %}
+  <div style="overflow-x:auto;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr>{% for col in ['Resident','Bill','Amount','Due Date','Status','Paid On','Action'] %}<th style="padding:var(--space-3) var(--space-5);text-align:left;font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:0.09em;color:var(--color-text-tertiary);background:var(--color-bg-subtle);border-bottom:1px solid var(--color-border-subtle);white-space:nowrap;">{{ col }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for bill in bills %}
+        <tr class="bill-row" data-status="{{ bill.status }}" data-confirmed="{{ 'true' if bill.confirmed else 'false' }}" style="border-bottom:{{ '1px solid var(--color-border-subtle)' if not loop.last else 'none' }};transition:background var(--ease-fast);" onmouseover="this.style.background='var(--color-bg-subtle)'" onmouseout="this.style.background=''">
+          <td style="padding:var(--space-4) var(--space-4);max-width:160px;"><div style="font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ bill.resident_name }}</div><div style="font-size:var(--text-xs);color:var(--color-text-tertiary);margin-top:1px;">Flat {{ bill.flat_number }}</div></td>
+          <td style="padding:var(--space-4) var(--space-4);max-width:180px;"><div style="font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ bill.title }}</div>{% if bill.proof_url %}<a href="{{ bill.proof_url }}" target="_blank" style="display:inline-flex;align-items:center;gap:3px;margin-top:3px;font-size:var(--text-xs);font-weight:600;color:var(--color-accent);text-decoration:none;">📎 Proof</a>{% endif %}</td>
+          <td style="padding:var(--space-4) var(--space-4);white-space:nowrap;"><span style="font-family:var(--font-display);font-size:var(--text-base);font-weight:700;color:var(--color-text-primary);">₹{{ "{:,.0f}".format(bill.amount) }}</span></td>
+          <td style="padding:var(--space-4) var(--space-4);font-size:var(--text-sm);color:var(--color-text-secondary);white-space:nowrap;">{{ bill.due_date or '—' }}</td>
+          <td style="padding:var(--space-4) var(--space-4);white-space:nowrap;">{% if bill.status == 'pending' %}<span style="display:inline-block;padding:4px var(--space-3);background:rgba(212,168,83,0.12);border:1px solid var(--color-accent-border);border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;color:var(--color-accent);">⏳ Pending</span>{% elif bill.status == 'paid' and bill.confirmed %}<span style="display:inline-flex;align-items:center;gap:4px;padding:4px var(--space-3);background:rgba(34,197,94,0.10);border:1px solid rgba(34,197,94,0.22);border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;color:#16a34a;"><span style="width:5px;height:5px;background:#16a34a;border-radius:50%;"></span>Confirmed</span>{% elif bill.status == 'paid' and not bill.confirmed %}<span style="display:inline-block;padding:4px var(--space-3);background:rgba(249,115,22,0.10);border:1px solid rgba(249,115,22,0.25);border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;color:#f97316;">⚠️ Awaiting</span>{% endif %}</td>
+          <td style="padding:var(--space-4) var(--space-4);font-size:var(--text-sm);color:var(--color-text-secondary);white-space:nowrap;">{{ bill.paid_at or '—' }}</td>
+          <td style="padding:var(--space-4) var(--space-4);">{% if bill.status == 'paid' and not bill.confirmed %}<form method="POST" action="{{ url_for('confirm_bill', slug=apartment.slug, bill_id=bill.id) }}"><button type="submit" style="padding:5px var(--space-3);background:rgba(34,197,94,0.10);border:1px solid rgba(34,197,94,0.25);border-radius:var(--radius-sm);font-family:var(--font-body);font-size:var(--text-xs);font-weight:700;color:#16a34a;cursor:pointer;white-space:nowrap;transition:all var(--ease-fast);" onmouseover="this.style.background='rgba(34,197,94,0.20)'" onmouseout="this.style.background='rgba(34,197,94,0.10)'">✓ Confirm</button></form>{% elif bill.confirmed %}<span style="font-size:var(--text-xs);color:var(--color-text-tertiary);font-weight:600;">✓ Done</span>{% else %}<span style="font-size:var(--text-xs);color:var(--color-text-tertiary);">—</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div id="billsEmpty" style="display:none;text-align:center;padding:var(--space-12) var(--space-8);"><div style="font-size:2.5rem;opacity:0.22;margin-bottom:var(--space-3);">🔍</div><p style="font-size:var(--text-sm);color:var(--color-text-tertiary);">No bills match this filter.</p></div>
+  {% else %}
+  <div style="text-align:center;padding:var(--space-16) var(--space-8);"><div style="font-size:3rem;opacity:0.22;margin-bottom:var(--space-4);">💵</div><p style="font-size:var(--text-base);color:var(--color-text-tertiary);">No bills yet.</p></div>
+  {% endif %}
+</div>
+
+
+<!-- ══════════════════════════════════
+     MODAL: Add Payment Type
+     Custom UI: frequency icon-cards,
+     distribution option-cards,
+     resident checkbox-list with search
+══════════════════════════════════ -->
+<div id="addPayModal" style="
+  display:none;position:fixed;inset:0;z-index:1040;
+  background:rgba(0,0,0,0.55);backdrop-filter:blur(6px);
+  align-items:flex-start;justify-content:center;
+  padding:var(--page-padding);padding-top:max(var(--space-8),4vh);
+  overflow-y:auto;
+" onclick="if(event.target===this)closeModal('addPayModal')">
+
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-2xl);width:100%;max-width:540px;box-shadow:var(--shadow-2xl);animation:fadeUp 0.28s cubic-bezier(0.25,0.46,0.45,0.94) both;margin-bottom:var(--space-8);">
+
+    <!-- Sticky header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-6) var(--space-8);border-bottom:1px solid var(--color-border-subtle);background:var(--color-bg-subtle);border-radius:var(--radius-2xl) var(--radius-2xl) 0 0;position:sticky;top:0;z-index:2;">
+      <div>
+        <h2 style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.02em;">New Payment</h2>
+        <p style="font-size:var(--text-sm);color:var(--color-text-tertiary);margin-top:2px;">Bills auto-generate for assigned residents</p>
+      </div>
+      <button onclick="closeModal('addPayModal')" style="width:32px;height:32px;background:var(--color-bg-surface);border:1px solid var(--color-border-default);border-radius:var(--radius-md);cursor:pointer;font-size:var(--text-sm);color:var(--color-text-secondary);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background var(--ease-fast);" onmouseover="this.style.background='var(--color-bg-muted)'" onmouseout="this.style.background=''">✕</button>
+    </div>
+
+    <form id="addPayForm" method="POST" action="{{ url_for('create_payment', slug=apartment.slug) }}" style="padding:var(--space-7) var(--space-8) var(--space-8);">
+
+      <!-- ── 1. Title + Amount ── -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);margin-bottom:var(--space-6);" class="pay-grid">
+        <div>
+          <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Title <span style="color:var(--color-danger)">*</span></label>
+          <input type="text" name="title" placeholder="e.g. Maintenance" required
+            style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+            onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+            onblur="this.style.borderColor='';this.style.boxShadow=''">
+        </div>
+        <div>
+          <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Amount (₹) <span style="color:var(--color-danger)">*</span></label>
+          <input type="number" name="amount" placeholder="0.00" step="0.01" min="0" required
+            style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+            onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+            onblur="this.style.borderColor='';this.style.boxShadow=''">
+        </div>
+      </div>
+
+      <!-- ── 2. FREQUENCY: icon tile grid ── -->
+      <div style="margin-bottom:var(--space-6);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-3);">Frequency <span style="color:var(--color-danger)">*</span></label>
+        <div id="freqGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-2);">
+          {% for val, icon, lbl in [('once','1×','One-time'),('monthly','📅','Monthly'),('quarterly','📆','Quarterly'),('annual','🗓️','Annual')] %}
+          <label id="freq-{{ val }}" onclick="selectFreq('{{ val }}')" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--space-1);padding:var(--space-3) var(--space-1);background:var(--color-bg-subtle);border:2px solid var(--color-border-default);border-radius:var(--radius-lg);cursor:pointer;text-align:center;transition:all var(--ease-fast);user-select:none;overflow:hidden;">
+            <input type="radio" name="frequency" value="{{ val }}" style="display:none;">
+            <span style="font-size:1.2rem;line-height:1;flex-shrink:0;">{{ icon }}</span>
+            <span style="font-size:0.65rem;font-weight:700;color:var(--color-text-secondary);line-height:1.3;word-break:break-word;text-align:center;">{{ lbl }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <p id="freqErr" style="display:none;font-size:var(--text-xs);color:var(--color-danger);margin-top:var(--space-2);">Please select a frequency</p>
+      </div>
+
+
+      <!-- ── 3. Due Date ── -->
+      <div style="margin-bottom:var(--space-6);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Due Date <span style="color:var(--color-danger)">*</span></label>
+        <input type="date" name="due_date" required
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);color:var(--color-text-primary);transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''">
+      </div>
+
+      <!-- ── 4. DISTRIBUTION: large option cards ── -->
+      <div style="margin-bottom:var(--space-6);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-3);">Assign To <span style="color:var(--color-danger)">*</span></label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);">
+          {% for val, icon, lbl, desc in [
+            ('all',      '👥', 'All Residents',   'Every registered resident'),
+            ('specific', '🎯', 'Specific People', 'Choose residents manually'),
+          ] %}
+          <label id="dist-{{ val }}" onclick="selectDist('{{ val }}')" style="display:flex;flex-direction:column;gap:var(--space-2);padding:var(--space-4) var(--space-4);background:var(--color-bg-subtle);border:2px solid var(--color-border-default);border-radius:var(--radius-xl);cursor:pointer;transition:all var(--ease-fast);user-select:none;overflow:hidden;">
+            <input type="radio" name="distribution" value="{{ val }}" style="display:none;">
+            <div style="display:flex;align-items:center;gap:var(--space-2);min-width:0;">
+              <span style="font-size:1.1rem;flex-shrink:0;">{{ icon }}</span>
+              <span style="font-size:var(--text-sm);font-weight:700;color:var(--color-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ lbl }}</span>
+            </div>
+            <span style="font-size:var(--text-xs);color:var(--color-text-tertiary);line-height:1.4;">{{ desc }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <p id="distErr" style="display:none;font-size:var(--text-xs);color:var(--color-danger);margin-top:var(--space-2);">Please select who to assign this to</p>
+      </div>
+
+      <!-- ── 5. RESIDENT PICKER (shown when "specific") ── -->
+      <div id="residentPicker" style="display:none;margin-bottom:var(--space-6);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-3);">
+          <label style="font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);">Select Residents <span style="color:var(--color-danger)">*</span></label>
+          <button type="button" id="selAllBtn" onclick="toggleSelectAll()" style="font-size:var(--text-xs);font-weight:600;color:var(--color-accent);background:none;border:none;cursor:pointer;text-decoration:underline;text-underline-offset:2px;padding:0;">Select all</button>
+        </div>
+        <!-- Search -->
+        <div style="position:relative;margin-bottom:var(--space-2);">
+          <span style="position:absolute;left:var(--space-3);top:50%;transform:translateY(-50%);color:var(--color-text-tertiary);pointer-events:none;font-size:0.75rem;">🔍</span>
+          <input id="resSearch" type="text" placeholder="Search residents…" oninput="filterResidents(this.value)"
+            style="width:100%;padding:9px var(--space-4) 9px 2.2rem;background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);color:var(--color-text-primary);transition:border-color var(--ease-fast);"
+            onfocus="this.style.borderColor='var(--color-accent)'" onblur="this.style.borderColor=''">
+        </div>
+        <!-- List -->
+        <div id="resList" style="background:var(--color-bg-subtle);border:1px solid var(--color-border-subtle);border-radius:var(--radius-md);max-height:240px;overflow-y:auto;">
+          <div id="resLoading" style="padding:var(--space-5);text-align:center;display:flex;align-items:center;justify-content:center;gap:var(--space-2);">
+            <span style="display:inline-block;animation:spin 1s linear infinite;font-size:1rem;">⟳</span>
+            <span style="font-size:var(--text-sm);color:var(--color-text-tertiary);">Loading…</span>
+          </div>
+        </div>
+        <!-- Count -->
+        <div id="selCount" style="display:none;margin-top:var(--space-2);font-size:var(--text-xs);color:var(--color-text-tertiary);">
+          <span id="selNum" style="font-weight:700;color:var(--color-accent);">0</span> selected
+        </div>
+        <p id="resErr" style="display:none;font-size:var(--text-xs);color:var(--color-danger);margin-top:var(--space-1);">Please select at least one resident</p>
+        <select name="selected_residents" id="resHidden" multiple style="display:none;"></select>
+      </div>
+
+      <!-- ── 6. Description ── -->
+      <div style="margin-bottom:var(--space-7);">
+        <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Description</label>
+        <textarea name="description" rows="2" placeholder="Optional note about this payment"
+          style="width:100%;padding:11px var(--space-4);background:var(--color-bg-subtle);border:1.5px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-base);color:var(--color-text-primary);resize:vertical;transition:border-color var(--ease-fast),box-shadow var(--ease-fast);"
+          onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+          onblur="this.style.borderColor='';this.style.boxShadow=''"></textarea>
+      </div>
+
+      <button type="submit" id="createBtn" class="btn btn-primary btn-block" style="font-weight:700;">Create Payment Type →</button>
+    </form>
+  </div>
+</div>
+
+
+<!-- ── Styles ── -->
+<style>
+  /* Modal responsive */
+  @media (max-width:520px) {
+    .pay-grid { grid-template-columns:1fr !important; }
+    /* Freq tiles: 2x2 on very narrow instead of 4x1 */
+    #freqGrid { grid-template-columns:repeat(2,1fr) !important; }
+  }
+
+  /* Stat strip: safety for very small screens */
+  @media (max-width:480px) {
+    .stat-strip { grid-template-columns:repeat(2,1fr) !important; }
+  }
+
+  @keyframes spin { to { transform:rotate(360deg); } }
+  #resList::-webkit-scrollbar { width:5px; }
+  #resList::-webkit-scrollbar-thumb { background:var(--color-border-default);border-radius:3px; }
+</style>
+
+
+<!-- ── Scripts ── -->
+<script>
+  function openModal(id)  { document.getElementById(id).style.display = 'flex'; }
+  function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+  document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal('addPayModal'); });
+
+  // ── Bill filter ──
+  function filterBills(filter) {
+    document.querySelectorAll('#billFilterTabs button').forEach(btn => {
+      const a = btn.dataset.filter === filter;
+      btn.style.background  = a ? 'var(--color-accent)'   : 'var(--color-bg-surface)';
+      btn.style.color       = a ? '#fff'                  : 'var(--color-text-secondary)';
+      btn.style.borderColor = a ? 'var(--color-accent)'   : 'var(--color-border-default)';
+    });
+    let vis = 0;
+    document.querySelectorAll('.bill-row').forEach(row => {
+      const s = row.dataset.status, c = row.dataset.confirmed === 'true';
+      const show = filter==='all' || (filter==='pending'&&s==='pending') || (filter==='paid'&&s==='paid') || (filter==='unconfirmed'&&s==='paid'&&!c);
+      row.style.display = show ? '' : 'none';
+      if (show) vis++;
+    });
+    document.getElementById('billsCount').textContent = vis + ' shown';
+    document.getElementById('billsEmpty').style.display = vis===0 ? 'block' : 'none';
+  }
+
+  // ── Frequency tiles ──
+  let selFreq = null;
+  function selectFreq(val) {
+    selFreq = val;
+    document.querySelectorAll('[id^="freq-"]').forEach(lbl => {
+      const a = lbl.id === 'freq-'+val;
+      lbl.style.borderColor = a ? 'var(--color-accent)'         : 'var(--color-border-default)';
+      lbl.style.background  = a ? 'var(--color-accent-subtle)'  : 'var(--color-bg-subtle)';
+      const span = lbl.querySelectorAll('span')[1];
+      if (span) span.style.color = a ? 'var(--color-accent)' : 'var(--color-text-secondary)';
+      lbl.querySelector('input').checked = a;
+    });
+    document.getElementById('freqErr').style.display = 'none';
+  }
+
+  // ── Distribution cards ──
+  let selDist = null;
+  function selectDist(val) {
+    selDist = val;
+    document.querySelectorAll('[id^="dist-"]').forEach(lbl => {
+      const a = lbl.id === 'dist-'+val;
+      lbl.style.borderColor = a ? 'var(--color-accent)'        : 'var(--color-border-default)';
+      lbl.style.background  = a ? 'var(--color-accent-subtle)' : 'var(--color-bg-subtle)';
+      lbl.querySelector('input').checked = a;
+    });
+    document.getElementById('distErr').style.display = 'none';
+    const picker = document.getElementById('residentPicker');
+    picker.style.display = val === 'specific' ? 'block' : 'none';
+    if (val === 'specific') loadResidents();
+  }
+
+  // ── Resident checkbox list ──
+  let residentsLoaded = false, allResidents = [], selectedIds = new Set();
+
+  function loadResidents() {
+    if (residentsLoaded) return;
+    fetch(`/apartments/{{ apartment.slug }}/admin/payments/residents-list`)
+      .then(r => r.json())
+      .then(data => {
+        residentsLoaded = true;
+        allResidents = data.residents || [];
+        buildResidentList(allResidents);
+      })
+      .catch(() => {
+        document.getElementById('resLoading').innerHTML =
+          '<span style="font-size:var(--text-sm);color:var(--color-danger);">✗ Failed to load</span>';
+      });
+  }
+
+  const CHECK_SVG = '<svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l3 3 5-6" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  function buildResidentList(list) {
+    const container = document.getElementById('resList');
+    document.getElementById('resLoading').style.display = 'none';
+    container.querySelectorAll('.res-row').forEach(e => e.remove());
+
+    if (list.length === 0) {
+      container.innerHTML = '<div style="padding:var(--space-6);text-align:center;font-size:var(--text-sm);color:var(--color-text-tertiary);">No residents found</div>';
+      return;
+    }
+
+    list.forEach((res, i) => {
+      const isActive = res.status === 'active';
+      const checked  = selectedIds.has(String(res.id));
+
+      const row = document.createElement('label');
+      row.className    = 'res-row';
+      row.dataset.name = res.full_name.toLowerCase();
+      row.style.cssText = `display:flex;align-items:center;gap:var(--space-3);padding:var(--space-3) var(--space-4);cursor:pointer;${i < list.length-1 ? 'border-bottom:1px solid var(--color-border-subtle);' : ''}transition:background var(--ease-fast);${checked ? 'background:var(--color-accent-subtle);' : ''}`;
+
+      // Custom checkbox box
+      const box = document.createElement('div');
+      box.style.cssText = `width:16px;height:16px;flex-shrink:0;border-radius:4px;border:2px solid ${checked ? 'var(--color-accent)' : 'var(--color-border-default)'};background:${checked ? 'var(--color-accent)' : 'transparent'};display:flex;align-items:center;justify-content:center;transition:all var(--ease-fast);`;
+      box.innerHTML = checked ? CHECK_SVG : '';
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.value = res.id; cb.checked = checked; cb.style = 'display:none;';
+      cb.addEventListener('change', () => {
+        if (cb.checked) {
+          selectedIds.add(String(res.id));
+          box.style.borderColor = 'var(--color-accent)';
+          box.style.background  = 'var(--color-accent)';
+          box.innerHTML         = CHECK_SVG;
+          row.style.background  = 'var(--color-accent-subtle)';
+        } else {
+          selectedIds.delete(String(res.id));
+          box.style.borderColor = 'var(--color-border-default)';
+          box.style.background  = 'transparent';
+          box.innerHTML         = '';
+          row.style.background  = '';
+        }
+        syncHidden(); updateCount();
+        document.getElementById('resErr').style.display = 'none';
+      });
+
+      const info = document.createElement('div');
+      info.style.cssText = 'flex:1;min-width:0;';
+      info.innerHTML = `<div style="font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${res.full_name}</div><div style="font-size:var(--text-xs);color:var(--color-text-tertiary);">Flat ${res.flat}</div>`;
+
+      const badge = document.createElement('span');
+      badge.style.cssText = `padding:2px 8px;border-radius:999px;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;flex-shrink:0;${isActive ? 'background:rgba(34,197,94,0.10);border:1px solid rgba(34,197,94,0.22);color:#16a34a;' : 'background:var(--color-bg-surface);border:1px solid var(--color-border-default);color:var(--color-text-tertiary);'}`;
+      badge.textContent = res.status;
+
+      row.append(box, cb, info, badge);
+      container.appendChild(row);
+    });
+
+    document.getElementById('selCount').style.display = 'block';
+    updateCount();
+  }
+
+  function filterResidents(q) {
+    document.querySelectorAll('.res-row').forEach(r => {
+      r.style.display = r.dataset.name.includes(q.toLowerCase()) ? '' : 'none';
+    });
+  }
+
+  function syncHidden() {
+    const sel = document.getElementById('resHidden');
+    sel.innerHTML = '';
+    selectedIds.forEach(id => {
+      const o = document.createElement('option');
+      o.value = id; o.selected = true; sel.appendChild(o);
+    });
+  }
+
+  function updateCount() {
+    document.getElementById('selNum').textContent = selectedIds.size;
+    document.getElementById('selAllBtn').textContent =
+      selectedIds.size === allResidents.length && allResidents.length > 0 ? 'Deselect all' : 'Select all';
+  }
+
+  function toggleSelectAll() {
+    const doSelect = selectedIds.size < allResidents.length;
+    allResidents.forEach(r => doSelect ? selectedIds.add(String(r.id)) : selectedIds.delete(String(r.id)));
+    syncHidden();
+    document.querySelectorAll('.res-row').forEach(row => {
+      const cb  = row.querySelector('input[type=checkbox]');
+      const box = row.querySelector('div');
+      if (!cb || !box) return;
+      cb.checked            = doSelect;
+      box.style.borderColor = doSelect ? 'var(--color-accent)' : 'var(--color-border-default)';
+      box.style.background  = doSelect ? 'var(--color-accent)' : 'transparent';
+      box.innerHTML         = doSelect ? CHECK_SVG : '';
+      row.style.background  = doSelect ? 'var(--color-accent-subtle)' : '';
+    });
+    updateCount();
+  }
+
+  // ── Form validation ──
+  document.getElementById('addPayForm').addEventListener('submit', function(e) {
+    let ok = true;
+    if (!selFreq) { document.getElementById('freqErr').style.display = 'block'; ok = false; }
+    if (!selDist) { document.getElementById('distErr').style.display = 'block'; ok = false; }
+    if (selDist === 'specific' && selectedIds.size === 0) { document.getElementById('resErr').style.display = 'block'; ok = false; }
+    if (!ok) { e.preventDefault(); return; }
+    const btn = document.getElementById('createBtn');
+    btn.disabled = true; btn.textContent = 'Creating…'; btn.style.opacity = '0.75';
+  });
+</script>
+
+{% endblock %}

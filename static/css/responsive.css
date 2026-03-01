@@ -1,0 +1,939 @@
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+/* Desktop Default Styles */
+.hamburger-menu {
+    display: none; /* Hidden on desktop by default */
+}
+
+.mobile-overlay {
+    display: none; /* Hidden on desktop */
+}
+
+/* General Mobile Optimizations */
+@media (max-width: 768px) {
+    /* Container and Spacing */
+    .container {
+        padding: 0 1rem;
+    }
+
+    /* Typography */
+    h1 { font-size: 1.75rem !important; }
+    h2 { font-size: 1.5rem !important; }
+    h3 { font-size: 1.25rem !important; }
+
+    /* ============================================
+       LANDING PAGE MOBILE STYLES
+       ============================================ */
+    
+    /* Hero Section */
+    .hero {
+        padding: 2rem 0 !important;
+        text-align: center;
+    }
+
+    .hero h1 {
+        font-size: 2rem !important;
+        line-height: 1.2 !important;
+        margin-bottom: 1rem !important;
+    }
+
+    .hero p {
+        font-size: 1rem !important;
+        line-height: 1.6 !important;
+        margin-bottom: 1.5rem !important;
+    }
+
+    /* CTA Buttons */
+    .cta-buttons {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 1rem !important;
+        width: 100%;
+    }
+
+    .cta-buttons .btn {
+        width: 100% !important;
+        padding: 1rem 1.5rem !important;
+        font-size: 1rem !important;
+        text-align: center !important;
+        min-height: 44px !important;
+    }
+
+    /* Hero Image */
+    .hero-image {
+        width: 100% !important;
+        height: auto !important;
+        max-width: 100% !important;
+        border-radius: 12px !important;
+        margin-top: 2rem !important;
+    }
+
+    /* Features Section */
+    .features {
+        padding: 3rem 0 2rem !important;
+    }
+
+    .features h2 {
+        font-size: 1.75rem !important;
+        text-align: center !important;
+        margin-bottom: 2rem !important;
+    }
+
+    /* Feature Grid */
+    .feature-grid {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 2rem !important;
+    }
+
+    /* Feature Cards */
+    .feature-card {
+        padding: 1.5rem !important;
+        border-radius: 12px !important;
+    }
+
+    .feature-image {
+        width: 100% !important;
+        height: auto !important;
+        max-height: 200px !important;
+        object-fit: cover !important;
+        border-radius: 8px !important;
+        margin-bottom: 1rem !important;
+    }
+
+    .feature-card h3 {
+        font-size: 1.25rem !important;
+        margin-bottom: 0.75rem !important;
+    }
+
+    .feature-card p {
+        font-size: 0.95rem !important;
+        line-height: 1.6 !important;
+    }
+
+    /* Base Navbar (for landing pages) */
+    .navbar {
+        padding: 1rem !important;
+    }
+
+    .navbar .container {
+        flex-wrap: nowrap !important;
+        justify-content: space-between !important;
+    }
+
+    /* Hamburger Menu Button */
+    .hamburger-menu {
+        display: block !important;
+        background: none;
+        border: none;
+        color: var(--text-primary);
+        font-size: 1.75rem;
+        cursor: pointer;
+        padding: 0.5rem;
+        z-index: 1001;
+        transition: transform 0.3s ease;
+    }
+
+    .hamburger-menu:hover {
+        transform: scale(1.1);
+    }
+
+    .hamburger-icon {
+        display: block;
+        line-height: 1;
+    }
+
+    /* Hide nav links by default on mobile */
+    .navbar .nav-links {
+        display: flex !important;
+        position: fixed;
+        top: 0;
+        right: -100%;
+        width: 80%;
+        max-width: 320px;
+        height: 100vh;
+        background: rgba(30, 30, 46, 0.95);
+        backdrop-filter: blur(20px);
+        flex-direction: column;
+        padding: 5rem 2rem 2rem;
+        transition: right 0.3s ease;
+        z-index: 1000;
+        box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .navbar .nav-links.active {
+        right: 0 !important;
+    }
+
+    .navbar .nav-links li {
+        width: 100%;
+        margin: 0;
+    }
+
+    .navbar .nav-links a {
+        display: block;
+        padding: 1rem 1.5rem;
+        width: 100%;
+        text-align: left;
+        font-size: 1.1rem;
+        border-radius: 8px;
+        transition: background 0.2s;
+    }
+
+    .navbar .nav-links a:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Mobile Overlay */
+    .mobile-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
+        z-index: 999;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .mobile-overlay.active {
+        display: block;
+        opacity: 1;
+    }
+
+    /* Footer */
+    .main-footer {
+        padding: 2rem 0 !important;
+    }
+
+    .footer-grid {
+        grid-template-columns: 1fr !important;
+        gap: 2rem !important;
+    }
+
+    .footer-column {
+        text-align: center;
+    }
+
+    .social-links {
+        justify-content: center !important;
+    }
+
+    .footer-bottom {
+        flex-direction: column !important;
+        gap: 1rem !important;
+        text-align: center;
+    }
+
+    /* ============================================
+       ABOUT PAGE MOBILE STYLES
+       ============================================ */
+    
+    .about-page .hero img {
+        height: 250px !important;
+        max-width: 100% !important;
+    }
+
+    .about-section > div[style*="grid-template-columns"] {
+        display: block !important;
+    }
+
+    .about-section img {
+        width: 100% !important;
+        height: auto !important;
+        max-height: 250px !important;
+        margin-top: 1.5rem !important;
+    }
+
+    .image-grid {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 1rem !important;
+    }
+
+    .image-overlay img {
+        width: 100% !important;
+        height: 150px !important;
+    }
+
+    /* ============================================
+       DIRECTORY PAGE MOBILE STYLES
+       ============================================ */
+    
+    .apartments-grid {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 1.5rem !important;
+    }
+
+    .apartment-card {
+        width: 100%;
+    }
+
+    .apartment-logo {
+        height: 200px !important;
+    }
+
+    .empty-state {
+        padding: 2rem 1rem !important;
+        text-align: center;
+    }
+
+    .empty-state img {
+        max-width: 100% !important;
+        height: auto !important;
+        max-height: 200px !important;
+    }
+
+    /* ============================================
+       REGISTER APARTMENT PAGE MOBILE STYLES
+       ============================================ */
+    
+    .form-page {
+        padding: 1rem !important;
+    }
+
+    .registration-form {
+        padding: 1.5rem !important;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem !important;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        font-size: 16px !important; /* Prevents iOS zoom */
+    }
+
+    .url-preview {
+        font-size: 0.875rem !important;
+        word-break: break-all;
+    }
+    
+    /* Cards and Containers */
+    .card, .stat-card, .complaint-card, .work-card, .expense-card {
+        padding: 1.25rem !important;
+        margin-bottom: 1rem !important;
+    }
+
+    /* Stats Grids */
+    .stats-grid, .stats-row {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+    }
+
+    /* Action Buttons */
+    .action-buttons {
+        flex-direction: column !important;
+    }
+
+    .action-buttons .btn {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    /* Tables - Make Scrollable */
+    .table-container {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+        min-width: 600px;
+    }
+
+    /* Modals */
+    .modal-content {
+        width: 95% !important;
+        max-width: 95% !important;
+        padding: 1.5rem !important;
+        margin: 1rem !important;
+    }
+
+    .modal-content.large {
+        max-width: 95% !important;
+    }
+
+    /* Forms */
+    .form-group label {
+        font-size: 0.9rem;
+    }
+
+    .form-control {
+        font-size: 16px !important; /* Prevents zoom on iOS */
+    }
+
+    /* Filter Chips/Buttons */
+    .filter-chips, .filter-bar {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        flex-wrap: nowrap !important;
+    }
+
+    .filter-chip, .filter-btn {
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+
+    /* Page Headers */
+    .page-header, .admin-header, .card-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 1rem !important;
+    }
+
+    .page-header .btn, .admin-header .btn, .card-header .btn {
+        width: 100%;
+    }
+
+    /* Quick Actions Grid */
+    .quick-actions {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+    }
+
+    .action-card {
+        padding: 20px 12px !important;
+    }
+
+    .action-icon {
+        font-size: 36px !important;
+    }
+
+    .action-label {
+        font-size: 13px !important;
+    }
+
+    /* Allocation Tables */
+    .allocation-table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .allocation-table {
+        min-width: 500px;
+    }
+
+    /* Complaint Photos */
+    .complaint-photos {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+
+    /* Work Progress Cards */
+    .works-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Expense Cards */
+    .expenses-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Analytics Charts */
+    .charts-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Contact Grid */
+    .contact-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Amenities Grid */
+    .amenities-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* Payment Summary */
+    .payment-summary {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Member Grid */
+    .members-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Touch-Friendly Buttons */
+    .btn {
+        min-height: 44px !important; /* iOS touch target */
+        padding: 0.75rem 1.25rem !important;
+    }
+
+    /* Improved Tap Targets */
+    a, button, input[type="submit"], input[type="button"] {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Navigation */
+    .nav-links {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+
+    /* Hero */
+    .hero {
+        min-height: 70vh;
+        padding: var(--spacing-xl) 0;
+    }
+
+    .hero h1 {
+        font-size: 2.5rem;
+    }
+
+    /* Grids */
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .feature-card:nth-child(1),
+    .feature-card:nth-child(2),
+    .feature-card:nth-child(3),
+    .feature-card:nth-child(4) {
+        grid-column: span 1;
+        grid-row: span 1;
+    }
+
+    .apartments-grid,
+    .dashboard-grid,
+    .payment-summary,
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Page Actions */
+    .page-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-input {
+        width: 100%;
+    }
+
+    /* Container */
+    .container {
+        padding: 0 var(--spacing-md);
+    }
+
+    /* Main */
+    main {
+        padding-top: 80px;
+    }
+
+    /* Tables */
+    .data-table {
+        font-size: 0.875rem;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: var(--spacing-sm);
+    }
+
+    /* Filter Buttons */
+    .filter-buttons {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .btn-filter {
+        flex: 1;
+        min-width: 80px;
+    }
+
+    /* Cards */
+    .card {
+        padding: var(--spacing-md);
+    }
+
+    /* Form Page */
+    .form-page {
+        padding: var(--spacing-md);
+    }
+
+    /* Login Container */
+    .login-container {
+        padding: var(--spacing-lg);
+    }
+
+    /* About Sections */
+    .about-section {
+        padding: var(--spacing-md);
+    }
+
+    /* Settings */
+    .security-options {
+        flex-direction: column;
+    }
+
+    .security-options .btn {
+        width: 100%;
+    }
+
+    /* About Page */
+    .about-page .hero img {
+        height: 200px !important;
+    }
+
+    .image-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    .image-overlay img {
+        height: 180px !important;
+    }
+
+    /* Footer */
+    .footer-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-xl);
+    }
+
+    .footer-column:first-child {
+        grid-column: span 2;
+    }
+
+    .footer-bottom {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .footer-legal {
+        justify-content: center;
+    }
+
+    /* Images */
+    .feature-image {
+        height: 200px;
+    }
+
+    .hero-image {
+        max-width: 100%;
+    }
+
+    .image-grid {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+
+    /* About page grid */
+    .about-section > div[style*=\"grid-template-columns\"] {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* Mobile (480px) */
+@media (max-width: 480px) {
+    /* Landing Page - Extra Small Screens */
+    .hero h1 {
+        font-size: 1.5rem !important;
+    }
+
+    .hero p {
+        font-size: 0.9rem !important;
+    }
+
+    .hero-image {
+        max-height: 180px !important;
+        object-fit: cover !important;
+    }
+
+    .features h2 {
+        font-size: 1.5rem !important;
+    }
+
+    .feature-card {
+        padding: 1rem !important;
+    }
+
+    .feature-image {
+        max-height: 150px !important;
+    }
+
+    .feature-card h3 {
+        font-size: 1.1rem !important;
+    }
+
+    .feature-card p {
+        font-size: 0.875rem !important;
+    }
+
+    /* CTA Buttons */
+    .cta-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .btn {
+        width: 100%;
+    }
+
+    /* Error Page */
+    .error-page h1 {
+        font-size: 5rem;
+    }
+
+    /* Feature Cards */
+    .feature-card h3::before {
+        font-size: 2rem;
+    }
+
+    /* Dashboard */
+    .dashboard h1,
+    .maintenance-page h1,
+    .payments-page h1,
+    .residents-page h1,
+    .settings-page h1 {
+        font-size: 1.75rem;
+    }
+
+    .card-stat {
+        font-size: 2rem;
+    }
+
+    .summary-card .amount {
+        font-size: 2.5rem;
+    }
+
+    /* Navbar */
+    .navbar {
+        padding: var(--spacing-sm) 0;
+    }
+
+    .navbar.scrolled {
+        padding: var(--spacing-xs) 0;
+    }
+
+    .logo {
+        font-size: 1.25rem;
+    }
+
+    .nav-links {
+        font-size: 0.875rem;
+    }
+
+    /* Apartment Card */
+    .apartment-card {
+        padding: var(--spacing-md);
+    }
+
+    .apartment-card h3 {
+        font-size: 1.25rem;
+    }
+
+    /* Maintenance Card */
+    .maintenance-card {
+        padding: var(--spacing-md);
+    }
+
+    .maintenance-card h3 {
+        font-size: 1.1rem;
+    }
+
+    /* Form Page */
+    .form-page h1 {
+        font-size: 1.75rem;
+    }
+
+    /* About Page */
+    .about-page h1,
+    .directory-page h1 {
+        font-size: 2rem;
+    }
+
+    .about-section h2 {
+        font-size: 1.5rem;
+    }
+
+    /* Footer */
+    .footer-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-lg);
+    }
+
+    .footer-column:first-child {
+        grid-column: span 1;
+    }
+
+    .social-links {
+        justify-content: center;
+    }
+
+    /* Images */
+    .feature-image {
+        height: 150px;
+    }
+
+    .card-image {
+        height: 150px;
+    }
+
+    .image-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .icon-wrapper {
+        width: 48px;
+        height: 48px;
+        font-size: 1.5rem;
+    }
+
+    .avatar-lg {
+        width: 60px;
+        height: 60px;
+    }
+}
+
+/* Large Screens (1400px+) */
+@media (min-width: 1400px) {
+    .container {
+        max-width: 1600px;
+    }
+
+    .hero h1 {
+        font-size: 6rem;
+    }
+
+    .features h2 {
+        font-size: 4rem;
+    }
+}
+
+/* High Resolution Displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    body::before {
+        background-size: cover;
+    }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .hero::before,
+    .hero::after {
+        animation: none;
+    }
+
+    body::before {
+        animation: none;
+    }
+}
+
+/* Print Styles */
+@media print {
+    body::before,
+    .hero::before,
+    .hero::after {
+        display: none;
+    }
+
+    .navbar,
+    footer,
+    .cta-buttons {
+        display: none;
+    }
+
+    main {
+        padding-top: 0;
+    }
+
+    .card,
+    .feature-card {
+        break-inside: avoid;
+    }
+}
+/* Small Mobile (480px and below) */
+@media (max-width: 480px) {
+    /* Even smaller text for tiny screens */
+    h1 { font-size: 1.5rem !important; }
+    h2 { font-size: 1.25rem !important; }
+    h3 { font-size: 1.1rem !important; }
+
+    /* Single column for everything */
+    .quick-actions, .amenities-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Smaller stat values */
+    .stat-value {
+        font-size: 2rem !important;
+    }
+
+    /* Compact cards */
+    .card, .stat-card {
+        padding: 1rem !important;
+    }
+
+    /* Stack form groups in modals */
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    /* Smaller modal padding */
+    .modal-content {
+        padding: 1.25rem !important;
+    }
+
+    /* Complaint photos - 2 columns only */
+    .complaint-photos {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    /* Reduce font sizes globally */
+    body {
+        font-size: 14px !important;
+    }
+
+    /* Smaller nav text */
+    .professional-navbar .back-to-main {
+        font-size: 0.7rem !important;
+        padding: 0.35rem 0.6rem !important;
+    }
+
+    .professional-navbar .logo {
+        font-size: 1rem !important;
+    }
+}
+
+/* Landscape Mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+    .modal-content {
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .nav-wrapper {
+        max-height: 100vh;
+        overflow-y: auto;
+    }
+}
+
+/* Prevent zoom on input focus (iOS) */
+@media (max-width: 768px) {
+    input[type="text"],
+    input[type="number"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="password"],
+    input[type="date"],
+    input[type="month"],
+    textarea,
+    select {
+        font-size: 16px !important;
+    }
+}

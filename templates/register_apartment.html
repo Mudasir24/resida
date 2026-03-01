@@ -1,0 +1,585 @@
+{% extends "base.html" %}
+
+{% block title %}Register Your Apartment — Resida{% endblock %}
+
+{% block content %}
+
+<div style="
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: var(--space-16);
+  align-items: start;
+  padding: var(--space-16) 0 var(--space-20);
+  max-width: 1100px;
+" class="register-layout">
+
+  <!-- ══════════════════════════════
+       LEFT: Context panel
+  ══════════════════════════════ -->
+  <div style="position: sticky; top: calc(var(--navbar-height) + var(--space-8));">
+
+    <span class="section-eyebrow fade-up" style="animation-delay:0s">Get Started</span>
+    <h1
+      class="fade-up"
+      style="
+        font-family: var(--font-display);
+        font-size: clamp(var(--text-3xl), 4vw, var(--text-5xl));
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        line-height: 1.1;
+        color: var(--color-text-primary);
+        margin-top: var(--space-3);
+        margin-bottom: var(--space-5);
+        animation-delay: 0.08s;
+      "
+    >
+      Register your<br>
+      <em style="color: var(--color-accent); font-style: italic;">community.</em>
+    </h1>
+    <p
+      class="fade-up"
+      style="
+        font-size: var(--text-base);
+        color: var(--color-text-secondary);
+        line-height: 1.8;
+        margin-bottom: var(--space-8);
+        animation-delay: 0.16s;
+      "
+    >
+      Create a dedicated portal for your apartment community in minutes. Residents get their own login, managers get full control.
+    </p>
+
+    <!-- Trust bullets -->
+    <div class="fade-up" style="
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+      margin-bottom: var(--space-10);
+      animation-delay: 0.22s;
+    ">
+      {% for item in [
+        ("✓", "Free to register, no credit card needed"),
+        ("✓", "Your own branded URL at /apartments/your-slug"),
+        ("✓", "Invite residents immediately after setup"),
+        ("✓", "Maintenance, payments & more — built in")
+      ] %}
+      <div style="
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-3);
+        font-size: var(--text-sm);
+        color: var(--color-text-secondary);
+        line-height: 1.5;
+      ">
+        <span style="
+          color: var(--color-success);
+          font-weight: 700;
+          flex-shrink: 0;
+          font-size: var(--text-base);
+          margin-top: -1px;
+        ">{{ item[0] }}</span>
+        {{ item[1] }}
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Hero image -->
+    <div
+      class="fade-up"
+      style="
+        border-radius: var(--radius-xl);
+        overflow: hidden;
+        box-shadow: var(--shadow-lg);
+        border: 1px solid var(--color-border-subtle);
+        aspect-ratio: 16/10;
+        animation-delay: 0.28s;
+      "
+    >
+      <img
+        src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=700&h=440&fit=crop&q=80"
+        alt="Modern apartment building"
+        style="width:100%; height:100%; object-fit:cover; display:block; opacity:1; animation:none;"
+      >
+    </div>
+
+  </div>
+
+
+  <!-- ══════════════════════════════
+       RIGHT: Form card
+  ══════════════════════════════ -->
+  <div
+    class="fade-up"
+    style="
+      background: var(--color-bg-surface);
+      border: 1px solid var(--color-border-subtle);
+      border-radius: var(--radius-2xl);
+      padding: var(--space-10);
+      box-shadow: var(--shadow-md);
+      animation-delay: 0.1s;
+    "
+  >
+
+    <!-- Form header -->
+    <div style="margin-bottom: var(--space-8); padding-bottom: var(--space-6); border-bottom: 1px solid var(--color-border-subtle);">
+      <h2 style="
+        font-family: var(--font-display);
+        font-size: var(--text-2xl);
+        font-weight: 600;
+        color: var(--color-text-primary);
+        letter-spacing: -0.02em;
+        margin-bottom: var(--space-1);
+      ">Community Details</h2>
+      <p style="font-size: var(--text-sm); color: var(--color-text-tertiary);">All fields marked * are required</p>
+    </div>
+
+    <form
+      method="POST"
+      action="{{ url_for('register_apartment') }}"
+      enctype="multipart/form-data"
+      id="registerForm"
+      novalidate
+    >
+
+      <!-- Apartment Name -->
+      <div class="form-group" style="margin-bottom: var(--space-5);">
+        <label for="name" style="
+          display: block;
+          font-size: var(--text-sm);
+          font-weight: 600;
+          color: var(--color-text-primary);
+          margin-bottom: var(--space-2);
+          letter-spacing: 0.01em;
+        ">Apartment Name <span style="color:var(--color-danger)">*</span></label>
+        <input
+          type="text"
+          id="name"
+          name="name"
+          required
+          placeholder="e.g., Sunset Towers"
+          autocomplete="off"
+          style="
+            width:100%;
+            padding: 11px var(--space-4);
+            background: var(--color-bg-subtle);
+            border: 1px solid var(--color-border-default);
+            border-radius: var(--radius-md);
+            font-family: var(--font-body);
+            font-size: var(--text-base);
+            color: var(--color-text-primary);
+            transition: border-color var(--ease-fast), box-shadow var(--ease-fast), background var(--ease-fast);
+          "
+          onfocus="this.style.borderColor='var(--color-accent)'; this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'; this.style.background='var(--color-bg-surface)'"
+          onblur="this.style.borderColor=''; this.style.boxShadow=''; this.style.background=''"
+        >
+      </div>
+
+      <!-- URL Slug -->
+      <div class="form-group" style="margin-bottom: var(--space-5);">
+        <label for="slug" style="
+          display: block;
+          font-size: var(--text-sm);
+          font-weight: 600;
+          color: var(--color-text-primary);
+          margin-bottom: var(--space-2);
+          letter-spacing: 0.01em;
+        ">Community URL <span style="color:var(--color-danger)">*</span></label>
+
+        <div style="position: relative;">
+          <input
+            type="text"
+            id="slug"
+            name="slug"
+            required
+            placeholder="e.g., sunset-towers"
+            pattern="[a-z0-9-]+"
+            autocomplete="off"
+            style="
+              width:100%;
+              padding: 11px var(--space-4);
+              padding-right: 110px;
+              background: var(--color-bg-subtle);
+              border: 1px solid var(--color-border-default);
+              border-radius: var(--radius-md);
+              font-family: 'Courier New', monospace;
+              font-size: var(--text-sm);
+              color: var(--color-text-primary);
+              transition: border-color var(--ease-fast), box-shadow var(--ease-fast), background var(--ease-fast);
+            "
+            onfocus="this.style.borderColor='var(--color-accent)'; this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'; this.style.background='var(--color-bg-surface)'"
+            onblur="this.style.borderColor=''; this.style.boxShadow=''; this.style.background=''"
+          >
+          <!-- Availability badge -->
+          <span id="slug-badge" style="
+            position: absolute;
+            right: var(--space-3);
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: var(--text-xs);
+            font-weight: 600;
+            padding: 3px var(--space-3);
+            border-radius: var(--radius-full);
+            display: none;
+            transition: all var(--ease-fast);
+          "></span>
+        </div>
+
+        <p style="
+          font-size: var(--text-xs);
+          color: var(--color-text-tertiary);
+          margin-top: var(--space-2);
+          line-height: 1.5;
+        ">Lowercase letters, numbers, and hyphens only.</p>
+
+        <!-- URL Preview -->
+        <div id="url-preview-box" style="
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+          margin-top: var(--space-3);
+          padding: var(--space-3) var(--space-4);
+          background: var(--color-accent-subtle);
+          border: 1px solid var(--color-accent-border);
+          border-radius: var(--radius-md);
+          font-size: var(--text-sm);
+          overflow: hidden;
+        ">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="color:var(--color-accent); flex-shrink:0;">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+          <span style="color:var(--color-text-tertiary); font-family:'Courier New',monospace; font-size:var(--text-xs); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            resida.app/apartments/<span id="slug-preview" style="color:var(--brand-600); font-weight:600;">your-slug</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Two-column row: Address + City -->
+      <div style="
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-4);
+        margin-bottom: var(--space-5);
+      " class="form-row-2col">
+
+        <div class="form-group" style="margin-bottom:0;">
+          <label for="address" style="
+            display:block; font-size:var(--text-sm); font-weight:600;
+            color:var(--color-text-primary); margin-bottom:var(--space-2); letter-spacing:0.01em;
+          ">Street Address</label>
+          <input
+            type="text" id="address" name="address"
+            placeholder="123 Main St"
+            style="
+              width:100%; padding:11px var(--space-4);
+              background:var(--color-bg-subtle);
+              border:1px solid var(--color-border-default);
+              border-radius:var(--radius-md);
+              font-family:var(--font-body); font-size:var(--text-base);
+              color:var(--color-text-primary);
+              transition:border-color var(--ease-fast), box-shadow var(--ease-fast), background var(--ease-fast);
+            "
+            onfocus="this.style.borderColor='var(--color-accent)'; this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'; this.style.background='var(--color-bg-surface)'"
+            onblur="this.style.borderColor=''; this.style.boxShadow=''; this.style.background=''"
+          >
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+          <label for="city" style="
+            display:block; font-size:var(--text-sm); font-weight:600;
+            color:var(--color-text-primary); margin-bottom:var(--space-2); letter-spacing:0.01em;
+          ">City</label>
+          <input
+            type="text" id="city" name="city"
+            placeholder="City"
+            style="
+              width:100%; padding:11px var(--space-4);
+              background:var(--color-bg-subtle);
+              border:1px solid var(--color-border-default);
+              border-radius:var(--radius-md);
+              font-family:var(--font-body); font-size:var(--text-base);
+              color:var(--color-text-primary);
+              transition:border-color var(--ease-fast), box-shadow var(--ease-fast), background var(--ease-fast);
+            "
+            onfocus="this.style.borderColor='var(--color-accent)'; this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'; this.style.background='var(--color-bg-surface)'"
+            onblur="this.style.borderColor=''; this.style.boxShadow=''; this.style.background=''"
+          >
+        </div>
+      </div>
+
+      <!-- Two-column row: Email + Phone -->
+      <div style="
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-4);
+        margin-bottom: var(--space-5);
+      " class="form-row-2col">
+
+        <div class="form-group" style="margin-bottom:0;">
+          <label for="admin_email" style="
+            display:block; font-size:var(--text-sm); font-weight:600;
+            color:var(--color-text-primary); margin-bottom:var(--space-2); letter-spacing:0.01em;
+          ">Admin Email <span style="color:var(--color-danger)">*</span></label>
+          <input
+            type="email" id="admin_email" name="admin_email" required
+            placeholder="admin@example.com"
+            style="
+              width:100%; padding:11px var(--space-4);
+              background:var(--color-bg-subtle);
+              border:1px solid var(--color-border-default);
+              border-radius:var(--radius-md);
+              font-family:var(--font-body); font-size:var(--text-base);
+              color:var(--color-text-primary);
+              transition:border-color var(--ease-fast), box-shadow var(--ease-fast), background var(--ease-fast);
+            "
+            onfocus="this.style.borderColor='var(--color-accent)'; this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'; this.style.background='var(--color-bg-surface)'"
+            onblur="this.style.borderColor=''; this.style.boxShadow=''; this.style.background=''"
+          >
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+          <label for="phone" style="
+            display:block; font-size:var(--text-sm); font-weight:600;
+            color:var(--color-text-primary); margin-bottom:var(--space-2); letter-spacing:0.01em;
+          ">Contact Phone</label>
+          <input
+            type="tel" id="phone" name="phone"
+            placeholder="+1 (555) 000-0000"
+            style="
+              width:100%; padding:11px var(--space-4);
+              background:var(--color-bg-subtle);
+              border:1px solid var(--color-border-default);
+              border-radius:var(--radius-md);
+              font-family:var(--font-body); font-size:var(--text-base);
+              color:var(--color-text-primary);
+              transition:border-color var(--ease-fast), box-shadow var(--ease-fast), background var(--ease-fast);
+            "
+            onfocus="this.style.borderColor='var(--color-accent)'; this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'; this.style.background='var(--color-bg-surface)'"
+            onblur="this.style.borderColor=''; this.style.boxShadow=''; this.style.background=''"
+          >
+        </div>
+      </div>
+
+      <!-- Photo Upload -->
+      <div class="form-group" style="margin-bottom: var(--space-8);">
+        <label style="
+          display:block; font-size:var(--text-sm); font-weight:600;
+          color:var(--color-text-primary); margin-bottom:var(--space-2); letter-spacing:0.01em;
+        ">Apartment Photo</label>
+
+        <label
+          for="photo"
+          id="dropzone"
+          style="
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-3);
+            padding: var(--space-8) var(--space-6);
+            border: 2px dashed var(--color-border-default);
+            border-radius: var(--radius-xl);
+            cursor: pointer;
+            transition: all var(--ease-base);
+            text-align: center;
+            background: var(--color-bg-subtle);
+          "
+          onmouseover="this.style.borderColor='var(--color-accent)'; this.style.background='var(--color-accent-subtle)'"
+          onmouseout="if(!window._photoSelected){ this.style.borderColor=''; this.style.background=''; }"
+        >
+          <div id="dropzone-icon" style="
+            width: 48px; height: 48px;
+            background: var(--color-bg-surface);
+            border: 1px solid var(--color-border-default);
+            border-radius: var(--radius-lg);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem;
+          ">📷</div>
+
+          <div>
+            <p style="font-size:var(--text-sm); font-weight:600; color:var(--color-text-primary); margin-bottom:var(--space-1);">
+              Click to upload a photo
+            </p>
+            <p style="font-size:var(--text-xs); color:var(--color-text-tertiary);">
+              PNG, JPG, WEBP · Max 5MB · Recommended 800×600
+            </p>
+          </div>
+
+          <!-- Preview -->
+          <img
+            id="photo-preview"
+            src=""
+            alt="Preview"
+            style="
+              display:none;
+              width:100%; max-height:180px;
+              object-fit:cover;
+              border-radius:var(--radius-lg);
+              border: 1px solid var(--color-border-default);
+              opacity:1; animation:none;
+            "
+          >
+        </label>
+
+        <input
+          type="file"
+          id="photo"
+          name="photo"
+          accept="image/*"
+          style="position:absolute; opacity:0; pointer-events:none; width:1px; height:1px;"
+        >
+      </div>
+
+      <!-- Submit -->
+      <button
+        type="submit"
+        id="submitBtn"
+        class="btn btn-primary btn-lg btn-block"
+        style="font-size: var(--text-base); font-weight: 700; letter-spacing: 0.01em;"
+      >
+        Register Apartment →
+      </button>
+
+      <p style="
+        text-align: center;
+        margin-top: var(--space-4);
+        font-size: var(--text-xs);
+        color: var(--color-text-tertiary);
+        line-height: 1.6;
+      ">
+        By registering you agree to our
+        <a href="#" style="color:var(--color-text-secondary); text-decoration:underline; text-underline-offset:2px;">Terms of Service</a>
+        and
+        <a href="#" style="color:var(--color-text-secondary); text-decoration:underline; text-underline-offset:2px;">Privacy Policy</a>.
+      </p>
+
+    </form>
+  </div><!-- /form card -->
+</div><!-- /register-layout -->
+
+
+<!-- ── Responsive ── -->
+<style>
+  @media (max-width: 900px) {
+    .register-layout {
+      grid-template-columns: 1fr !important;
+      max-width: 600px !important;
+      margin-inline: auto;
+    }
+    .register-layout > div:first-child {
+      position: static !important;
+    }
+  }
+  @media (max-width: 540px) {
+    .form-row-2col {
+      grid-template-columns: 1fr !important;
+    }
+  }
+</style>
+
+
+<script>
+  // ── Slug: live preview + availability check ──
+  const slugInput   = document.getElementById('slug');
+  const slugPreview = document.getElementById('slug-preview');
+  const slugBadge   = document.getElementById('slug-badge');
+  let slugTimeout   = null;
+
+  function setSlugBadge(state) {
+    // state: 'checking' | 'available' | 'taken' | ''
+    slugBadge.style.display = state ? 'inline-block' : 'none';
+    if (state === 'available') {
+      slugBadge.textContent = '✓ Available';
+      slugBadge.style.background = 'var(--color-success-bg)';
+      slugBadge.style.color = 'var(--color-success)';
+    } else if (state === 'taken') {
+      slugBadge.textContent = '✗ Taken';
+      slugBadge.style.background = 'var(--color-danger-bg)';
+      slugBadge.style.color = 'var(--color-danger)';
+    } else if (state === 'checking') {
+      slugBadge.textContent = '…';
+      slugBadge.style.background = 'var(--color-bg-subtle)';
+      slugBadge.style.color = 'var(--color-text-tertiary)';
+    }
+  }
+
+  slugInput.addEventListener('input', function() {
+    const val = this.value.trim();
+    slugPreview.textContent = val || 'your-slug';
+    clearTimeout(slugTimeout);
+
+    if (!val) { setSlugBadge(''); return; }
+
+    setSlugBadge('checking');
+
+    slugTimeout = setTimeout(() => {
+      fetch(`/api/check-slug?slug=${encodeURIComponent(val)}`)
+        .then(r => r.json())
+        .then(data => setSlugBadge(data.exists ? 'taken' : 'available'))
+        .catch(() => setSlugBadge(''));
+    }, 400);
+  });
+
+  // ── Photo upload preview ──
+  const photoInput   = document.getElementById('photo');
+  const photoPreview = document.getElementById('photo-preview');
+  const dropzone     = document.getElementById('dropzone');
+
+  photoInput.addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+
+    window._photoSelected = true;
+    const url = URL.createObjectURL(file);
+    photoPreview.src = url;
+    photoPreview.style.display = 'block';
+    dropzone.style.borderColor  = 'var(--color-accent)';
+    dropzone.style.borderStyle  = 'solid';
+    dropzone.style.background   = 'var(--color-accent-subtle)';
+    document.getElementById('dropzone-icon').textContent = '✅';
+  });
+
+  // ── Auto-generate slug from name ──
+  const nameInput = document.getElementById('name');
+  nameInput.addEventListener('input', function() {
+    // Only auto-fill if user hasn't manually typed a slug
+    if (!slugInput.dataset.userEdited) {
+      const generated = this.value
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .slice(0, 40);
+      slugInput.value = generated;
+      slugPreview.textContent = generated || 'your-slug';
+
+      if (generated) {
+        setSlugBadge('checking');
+        clearTimeout(slugTimeout);
+        slugTimeout = setTimeout(() => {
+          fetch(`/api/check-slug?slug=${encodeURIComponent(generated)}`)
+            .then(r => r.json())
+            .then(data => setSlugBadge(data.exists ? 'taken' : 'available'))
+            .catch(() => setSlugBadge(''));
+        }, 500);
+      } else {
+        setSlugBadge('');
+      }
+    }
+  });
+
+  slugInput.addEventListener('keydown', () => {
+    slugInput.dataset.userEdited = 'true';
+  });
+
+  // ── Submit loading state ──
+  document.getElementById('registerForm').addEventListener('submit', function() {
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Registering…';
+    btn.style.opacity = '0.75';
+  });
+</script>
+
+{% endblock %}

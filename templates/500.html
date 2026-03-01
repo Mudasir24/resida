@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}500 — Server Error | Resida{% endblock %}
+
+{% block content %}
+<div class="error-page">
+  <div class="error-inner">
+
+    <!-- Decorative illustration -->
+    <div class="error-illustration">
+      <svg viewBox="0 0 120 80" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <!-- Building -->
+        <rect x="20" y="24" width="80" height="51" rx="3" fill="none" stroke="currentColor" stroke-width="2.5" opacity="0.18"/>
+        <!-- Windows (darkened / off) -->
+        <rect x="30" y="33" width="14" height="13" rx="2" fill="currentColor" opacity="0.06"/>
+        <rect x="53" y="33" width="14" height="13" rx="2" fill="currentColor" opacity="0.06"/>
+        <rect x="76" y="33" width="14" height="13" rx="2" fill="currentColor" opacity="0.06"/>
+        <rect x="30" y="54" width="14" height="13" rx="2" fill="currentColor" opacity="0.06"/>
+        <rect x="76" y="54" width="14" height="13" rx="2" fill="currentColor" opacity="0.06"/>
+        <!-- Door -->
+        <rect x="49" y="59" width="22" height="16" rx="2" fill="currentColor" opacity="0.12"/>
+        <!-- Roof -->
+        <polyline points="14,26 60,5 106,26" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" opacity="0.18"/>
+        <!-- Lightning bolt / warning -->
+        <path d="M57 33 l-5 10 h5 l-5 10" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/>
+        <!-- Warning circle -->
+        <circle cx="60" cy="47" r="14" fill="none" stroke="currentColor" stroke-width="2" opacity="0.22"/>
+      </svg>
+    </div>
+
+    <p class="error-code" style="color: var(--color-danger); opacity: 0.22;">500</p>
+    <h1 class="error-title">Something Went Wrong</h1>
+    <p class="error-desc">
+      We hit an unexpected snag on our end. Our team has been notified — please try again in a moment.
+    </p>
+
+    <div class="error-actions">
+      <a href="{{ url_for('index') }}" class="btn btn-primary">Go Home</a>
+      <button onclick="history.back()" class="btn btn-secondary">Go Back</button>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+  .error-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+  .error-illustration {
+    width: clamp(100px, 20vw, 160px);
+    color: var(--color-danger);
+    margin-bottom: var(--space-6);
+    opacity: 0.75;
+  }
+  .error-illustration svg { width: 100%; height: auto; }
+  .error-code { margin-bottom: var(--space-2) !important; }
+  .error-actions {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-top: var(--space-2);
+  }
+</style>
+{% endblock %}

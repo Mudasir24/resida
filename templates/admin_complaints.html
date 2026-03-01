@@ -1,0 +1,522 @@
+{% extends "apartment_base.html" %}
+
+{% block title %}Complaints — {{ apartment.name }}{% endblock %}
+
+{% block content %}
+
+{# ── Computed vars ── #}
+{% set total_c      = complaints | length %}
+{% set open_c       = complaints | selectattr('status','equalto','open')        | list | length %}
+{% set progress_c   = complaints | selectattr('status','equalto','in_progress') | list | length %}
+{% set resolved_c   = complaints | selectattr('status','equalto','resolved')    | list | length %}
+{% set active_c     = open_c + progress_c %}
+
+
+<!-- ══════════════════════════════════
+     PAGE HEADER
+══════════════════════════════════ -->
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-6);flex-wrap:wrap;margin-bottom:var(--space-8);">
+  <div>
+    <p style="font-size:var(--text-xs);font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Admin · {{ apartment.name }}</p>
+    <h1 style="font-family:var(--font-display);font-size:var(--text-4xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.03em;line-height:1.1;margin-bottom:var(--space-2);">Complaints</h1>
+    <p style="font-size:var(--text-base);color:var(--color-text-secondary);">Review and respond to resident complaints.</p>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     STAT STRIP  (3 cards)
+══════════════════════════════════ -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:var(--space-3);margin-bottom:var(--space-8);">
+
+  {# Total #}
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-xl);padding:var(--space-5) var(--space-6);">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Total</div>
+    <div style="font-family:var(--font-display);font-size:var(--text-3xl);font-weight:700;color:var(--color-text-primary);letter-spacing:-0.02em;line-height:1;">{{ total_c }}</div>
+  </div>
+
+  {# Active #}
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-xl);padding:var(--space-5) var(--space-6);">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Active</div>
+    <div style="font-family:var(--font-display);font-size:var(--text-3xl);font-weight:700;color:#f97316;letter-spacing:-0.02em;line-height:1;">{{ active_c }}</div>
+    <div style="display:flex;gap:var(--space-3);margin-top:var(--space-2);">
+      <span style="font-size:var(--text-xs);color:#f59e0b;font-weight:600;">{{ open_c }} open</span>
+      <span style="font-size:var(--text-xs);color:#3b82f6;font-weight:600;">{{ progress_c }} in progress</span>
+    </div>
+  </div>
+
+  {# Resolved #}
+  <div style="background:var(--color-bg-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-xl);padding:var(--space-5) var(--space-6);">
+    <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--color-text-tertiary);margin-bottom:var(--space-2);">Resolved</div>
+    <div style="font-family:var(--font-display);font-size:var(--text-3xl);font-weight:700;color:#16a34a;letter-spacing:-0.02em;line-height:1;">{{ resolved_c }}</div>
+    {% if total_c > 0 %}
+    <div style="margin-top:var(--space-2);">
+      <div style="height:4px;background:var(--color-bg-subtle);border-radius:var(--radius-full);overflow:hidden;">
+        <div style="height:100%;width:{{ ((resolved_c/total_c)*100)|round|int }}%;background:#16a34a;border-radius:var(--radius-full);transition:width 1s ease;"></div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+
+<!-- ══════════════════════════════════
+     FILTER TABS  (with live counts)
+══════════════════════════════════ -->
+<div style="display:flex;gap:var(--space-2);flex-wrap:wrap;margin-bottom:var(--space-7);" id="filterBar">
+  {% for fid, flabel, fcount in [
+    ('all',         'All',         total_c),
+    ('open',        'Open',        open_c),
+    ('in_progress', 'In Progress', progress_c),
+    ('resolved',    'Resolved',    resolved_c),
+  ] %}
+  <button
+    data-filter="{{ fid }}"
+    onclick="filterComplaints('{{ fid }}')"
+    style="
+      padding:7px var(--space-4);
+      background:{% if loop.first %}var(--color-accent){% else %}var(--color-bg-surface){% endif %};
+      color:{% if loop.first %}#fff{% else %}var(--color-text-secondary){% endif %};
+      border:1px solid {% if loop.first %}var(--color-accent){% else %}var(--color-border-default){% endif %};
+      border-radius:var(--radius-full);
+      font-family:var(--font-body);font-size:var(--text-xs);font-weight:700;
+      cursor:pointer;white-space:nowrap;
+      transition:all var(--ease-fast);
+      display:inline-flex;align-items:center;gap:var(--space-2);
+    "
+  >
+    {{ flabel }}
+    <span style="padding:1px 7px;border-radius:var(--radius-full);font-size:0.65rem;background:{% if loop.first %}rgba(255,255,255,0.25){% else %}var(--color-bg-subtle){% endif %};">{{ fcount }}</span>
+  </button>
+  {% endfor %}
+</div>
+
+
+<!-- ══════════════════════════════════
+     COMPLAINTS LIST
+══════════════════════════════════ -->
+{% if complaints %}
+
+<div style="display:flex;flex-direction:column;gap:var(--space-5);" id="complaintsGrid">
+  {% for c in complaints %}
+
+  {# ── Per-status colours ── #}
+  {% if c.status == 'open' %}
+    {% set s_color  = '#f59e0b' %}
+    {% set s_bg     = 'rgba(245,158,11,0.08)' %}
+    {% set s_border = 'rgba(245,158,11,0.25)' %}
+    {% set s_label  = 'Open' %}
+    {% set s_dot    = '#f59e0b' %}
+    {% set card_bar = '#f59e0b' %}
+  {% elif c.status == 'in_progress' %}
+    {% set s_color  = '#3b82f6' %}
+    {% set s_bg     = 'rgba(59,130,246,0.08)' %}
+    {% set s_border = 'rgba(59,130,246,0.25)' %}
+    {% set s_label  = 'In Progress' %}
+    {% set s_dot    = '#3b82f6' %}
+    {% set card_bar = '#3b82f6' %}
+  {% else %}
+    {% set s_color  = '#16a34a' %}
+    {% set s_bg     = 'rgba(34,197,94,0.08)' %}
+    {% set s_border = 'rgba(34,197,94,0.25)' %}
+    {% set s_label  = 'Resolved' %}
+    {% set s_dot    = '#16a34a' %}
+    {% set card_bar = '#16a34a' %}
+  {% endif %}
+
+  <div
+    class="c-card"
+    data-status="{{ c.status }}"
+    data-id="{{ c.id }}"
+    style="
+      background:var(--color-bg-surface);
+      border:1px solid var(--color-border-subtle);
+      border-left:3px solid {{ card_bar }};
+      border-radius:var(--radius-xl);
+      overflow:hidden;
+      transition:box-shadow var(--ease-fast);
+    "
+    onmouseover="this.style.boxShadow='var(--shadow-md)'"
+    onmouseout="this.style.boxShadow=''"
+  >
+
+    <!-- ── Card top padding ── -->
+    <div style="padding:var(--space-6) var(--space-7);">
+
+      <!-- HEADER: title + status badge -->
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-4);margin-bottom:var(--space-4);">
+        <div style="flex:1;min-width:0;">
+          <h3 style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.01em;line-height:1.3;margin-bottom:var(--space-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.title }}</h3>
+          <!-- Meta row -->
+          <div style="display:flex;flex-wrap:wrap;align-items:center;gap:var(--space-1) var(--space-4);">
+            <span style="display:inline-flex;align-items:center;gap:5px;font-size:var(--text-xs);font-weight:700;color:var(--color-text-primary);">
+              <span style="font-size:0.75rem;">🏠</span> Flat {{ c.flat }}
+            </span>
+            <span style="width:3px;height:3px;background:var(--color-border-default);border-radius:50%;flex-shrink:0;"></span>
+            <span style="display:inline-flex;align-items:center;gap:5px;font-size:var(--text-xs);color:var(--color-text-secondary);">
+              <span style="font-size:0.75rem;">👤</span> {{ c.resident_name }}
+            </span>
+            <span style="width:3px;height:3px;background:var(--color-border-default);border-radius:50%;flex-shrink:0;"></span>
+            <span style="display:inline-flex;align-items:center;gap:5px;font-size:var(--text-xs);color:var(--color-text-tertiary);">
+              <span style="font-size:0.75rem;">🕐</span> {{ c.created_at }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Status badge with dot -->
+        <span style="
+          display:inline-flex;align-items:center;gap:6px;flex-shrink:0;
+          padding:5px var(--space-3);
+          background:{{ s_bg }};
+          border:1px solid {{ s_border }};
+          border-radius:var(--radius-full);
+          font-size:var(--text-xs);font-weight:700;
+          color:{{ s_color }};
+          white-space:nowrap;
+        ">
+          <span style="width:6px;height:6px;background:{{ s_dot }};border-radius:50%;flex-shrink:0;{% if c.status == 'open' %}box-shadow:0 0 0 2px {{ s_bg }},0 0 0 3px {{ s_color }};{% endif %}"></span>
+          {{ s_label }}
+        </span>
+      </div>
+
+      <!-- DESCRIPTION -->
+      <p style="font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.65;margin-bottom:var(--space-4);">{{ c.description }}</p>
+
+      <!-- PHOTO (if present) -->
+      {% if c.photo_url %}
+      <div style="margin-bottom:var(--space-5);">
+        <img
+          src="{{ c.photo_url }}"
+          alt="Complaint photo"
+          onclick="openLightbox('{{ c.photo_url }}')"
+          style="
+            width:140px;height:105px;object-fit:cover;
+            border-radius:var(--radius-lg);
+            border:1px solid var(--color-border-subtle);
+            cursor:zoom-in;
+            transition:transform var(--ease-fast),box-shadow var(--ease-fast);
+          "
+          onmouseover="this.style.transform='scale(1.03)';this.style.boxShadow='var(--shadow-md)'"
+          onmouseout="this.style.transform='';this.style.boxShadow=''"
+        >
+      </div>
+      {% endif %}
+
+      <!-- LINKED WORK (if present) -->
+      {% if c.linked_work %}
+      <div style="
+        display:inline-flex;align-items:center;gap:var(--space-3);
+        padding:var(--space-3) var(--space-4);
+        background:rgba(34,197,94,0.07);
+        border:1px solid rgba(34,197,94,0.20);
+        border-radius:var(--radius-lg);
+        margin-bottom:var(--space-5);
+        text-decoration:none;
+      " role="link">
+        <span style="font-size:1rem;flex-shrink:0;">🔧</span>
+        <div style="min-width:0;">
+          <div style="font-size:var(--text-xs);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#16a34a;margin-bottom:1px;">Linked Maintenance Work</div>
+          <a href="{{ url_for('admin_works', slug=apartment.slug) }}"
+             style="font-size:var(--text-sm);font-weight:700;color:#16a34a;text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;"
+             onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+            View Work Order →
+          </a>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- STATUS ACTION BUTTONS -->
+      {% if c.status != 'resolved' %}
+      <div style="display:flex;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-5);">
+        {% if c.status == 'open' %}
+        <button
+          onclick="updateStatus('{{ c.id }}', 'in_progress')"
+          style="
+            display:inline-flex;align-items:center;gap:var(--space-2);
+            padding:8px var(--space-5);
+            background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);
+            border-radius:var(--radius-md);
+            font-family:var(--font-body);font-size:var(--text-sm);font-weight:700;
+            color:#3b82f6;cursor:pointer;
+            transition:all var(--ease-fast);
+          "
+          onmouseover="this.style.background='rgba(59,130,246,0.16)'"
+          onmouseout="this.style.background='rgba(59,130,246,0.08)'"
+        >⚙️ Mark In Progress</button>
+        {% endif %}
+
+        <button
+          onclick="updateStatus('{{ c.id }}', 'resolved')"
+          style="
+            display:inline-flex;align-items:center;gap:var(--space-2);
+            padding:8px var(--space-5);
+            background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);
+            border-radius:var(--radius-md);
+            font-family:var(--font-body);font-size:var(--text-sm);font-weight:700;
+            color:#16a34a;cursor:pointer;
+            transition:all var(--ease-fast);
+          "
+          onmouseover="this.style.background='rgba(34,197,94,0.16)'"
+          onmouseout="this.style.background='rgba(34,197,94,0.08)'"
+        >✓ Mark Resolved</button>
+      </div>
+      {% endif %}
+
+      <!-- DIVIDER before comments zone -->
+      <div style="border-top:1px solid var(--color-border-subtle);margin-bottom:var(--space-5);"></div>
+
+      <!-- COMMENTS SECTION -->
+      <div>
+        <!-- Comments header with toggle -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:{% if c.comments %}var(--space-4){% else %}0{% endif %};">
+          <span style="font-size:var(--text-sm);font-weight:700;color:var(--color-text-primary);">
+            💬 Comments
+            {% if c.comments %}
+            <span style="font-size:var(--text-xs);font-weight:600;color:var(--color-text-tertiary);margin-left:var(--space-1);">({{ c.comments | length }})</span>
+            {% endif %}
+          </span>
+          <button
+            onclick="toggleReply('{{ c.id }}')"
+            id="replyToggle-{{ c.id }}"
+            style="
+              display:inline-flex;align-items:center;gap:5px;
+              padding:5px var(--space-3);
+              background:var(--color-bg-subtle);
+              border:1px solid var(--color-border-default);
+              border-radius:var(--radius-md);
+              font-family:var(--font-body);font-size:var(--text-xs);font-weight:700;
+              color:var(--color-text-secondary);cursor:pointer;
+              transition:all var(--ease-fast);
+            "
+            onmouseover="this.style.borderColor='var(--color-accent-border)';this.style.color='var(--color-accent)'"
+            onmouseout="this.style.borderColor='';this.style.color=''"
+          >+ Reply</button>
+        </div>
+
+        <!-- Existing comments -->
+        {% if c.comments %}
+        <div style="display:flex;flex-direction:column;gap:var(--space-3);margin-bottom:var(--space-4);">
+          {% for comment in c.comments %}
+          <div style="
+            padding:var(--space-4);
+            background:{% if comment.is_admin %}rgba(212,168,83,0.06){% else %}var(--color-bg-subtle){% endif %};
+            border:1px solid {% if comment.is_admin %}var(--color-accent-border){% else %}var(--color-border-subtle){% endif %};
+            border-radius:var(--radius-lg);
+            {% if comment.is_admin %}border-left:3px solid var(--color-accent);{% endif %}
+          ">
+            <!-- Comment header: author + timestamp -->
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);margin-bottom:var(--space-2);">
+              <div style="display:flex;align-items:center;gap:var(--space-2);">
+                <!-- Avatar circle -->
+                <div style="
+                  width:26px;height:26px;border-radius:50%;flex-shrink:0;
+                  background:{% if comment.is_admin %}var(--color-accent){% else %}var(--color-bg-muted){% endif %};
+                  display:flex;align-items:center;justify-content:center;
+                  font-size:0.6rem;font-weight:700;
+                  color:{% if comment.is_admin %}#fff{% else %}var(--color-text-tertiary){% endif %};
+                ">{{ comment.author[:2].upper() if comment.author else '?' }}</div>
+                <span style="font-size:var(--text-xs);font-weight:700;color:var(--color-text-primary);">{{ comment.author }}</span>
+                {% if comment.is_admin %}
+                <span style="
+                  padding:1px 7px;border-radius:var(--radius-full);
+                  background:var(--color-accent-subtle);border:1px solid var(--color-accent-border);
+                  font-size:0.6rem;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;
+                  color:var(--color-accent);
+                ">Admin</span>
+                {% endif %}
+              </div>
+              <span style="font-size:var(--text-xs);color:var(--color-text-tertiary);white-space:nowrap;">{{ comment.created_at }}</span>
+            </div>
+            <!-- Comment body -->
+            <p style="font-size:var(--text-sm);color:var(--color-text-secondary);line-height:1.6;margin:0;">{{ comment.comment }}</p>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p style="font-size:var(--text-sm);color:var(--color-text-tertiary);margin:var(--space-3) 0 var(--space-4);">No comments yet.</p>
+        {% endif %}
+
+        <!-- REPLY FORM (collapsed by default) -->
+        <div id="replyForm-{{ c.id }}" style="display:none;">
+          <form
+            method="POST"
+            action="{{ url_for('add_complaint_comment', slug=apartment.slug, complaint_id=c.id) }}"
+            style="
+              padding:var(--space-5);
+              background:var(--color-bg-subtle);
+              border:1px solid var(--color-border-subtle);
+              border-radius:var(--radius-lg);
+            "
+          >
+            <label style="display:block;font-size:var(--text-sm);font-weight:600;color:var(--color-text-primary);margin-bottom:var(--space-2);">Your response</label>
+            <textarea
+              name="comment"
+              rows="3"
+              placeholder="Add your update or response…"
+              required
+              style="
+                width:100%;padding:10px var(--space-4);
+                background:var(--color-bg-surface);
+                border:1.5px solid var(--color-border-default);
+                border-radius:var(--radius-md);
+                font-family:var(--font-body);font-size:var(--text-sm);
+                color:var(--color-text-primary);
+                resize:vertical;
+                transition:border-color var(--ease-fast),box-shadow var(--ease-fast);
+                margin-bottom:var(--space-3);
+              "
+              onfocus="this.style.borderColor='var(--color-accent)';this.style.boxShadow='0 0 0 3px var(--color-accent-subtle)'"
+              onblur="this.style.borderColor='';this.style.boxShadow=''"
+            ></textarea>
+            <div style="display:flex;gap:var(--space-3);justify-content:flex-end;">
+              <button
+                type="button"
+                onclick="toggleReply('{{ c.id }}')"
+                style="padding:7px var(--space-4);background:none;border:1px solid var(--color-border-default);border-radius:var(--radius-md);font-family:var(--font-body);font-size:var(--text-sm);font-weight:600;color:var(--color-text-secondary);cursor:pointer;transition:all var(--ease-fast);"
+                onmouseover="this.style.borderColor='var(--color-border-default)';this.style.color='var(--color-text-primary)'"
+                onmouseout="this.style.borderColor='';this.style.color=''"
+              >Cancel</button>
+              <button
+                type="submit"
+                class="btn btn-primary"
+                style="padding:7px var(--space-5);font-weight:700;"
+              >Post Comment</button>
+            </div>
+          </form>
+        </div>
+
+      </div>
+      <!-- end comments section -->
+
+    </div>
+    <!-- end card padding -->
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+
+<!-- ── EMPTY STATE ── -->
+<div style="
+  text-align:center;
+  padding:var(--space-20) var(--page-padding);
+  background:var(--color-bg-surface);
+  border:1px solid var(--color-border-subtle);
+  border-radius:var(--radius-2xl);
+">
+  <div style="font-size:3.5rem;opacity:0.22;margin-bottom:var(--space-5);">📭</div>
+  <h2 style="font-family:var(--font-display);font-size:var(--text-2xl);font-weight:600;color:var(--color-text-primary);letter-spacing:-0.02em;margin-bottom:var(--space-3);">No Complaints Yet</h2>
+  <p style="font-size:var(--text-base);color:var(--color-text-tertiary);max-width:320px;margin:0 auto;">Complaints submitted by residents will appear here for your review.</p>
+</div>
+
+{% endif %}
+
+
+<!-- ══════════════════════════════════
+     PHOTO LIGHTBOX
+══════════════════════════════════ -->
+<div
+  id="lightbox"
+  style="
+    display:none;position:fixed;inset:0;z-index:2000;
+    background:rgba(0,0,0,0.88);backdrop-filter:blur(8px);
+    align-items:center;justify-content:center;padding:var(--page-padding);
+  "
+  onclick="closeLightbox()"
+>
+  <div style="position:relative;max-width:90vw;max-height:90vh;">
+    <img
+      id="lightboxImg"
+      src=""
+      alt="Complaint photo"
+      style="
+        max-width:100%;max-height:90vh;
+        border-radius:var(--radius-xl);
+        box-shadow:0 32px 64px rgba(0,0,0,0.5);
+        object-fit:contain;
+        display:block;
+      "
+    >
+    <button
+      onclick="closeLightbox()"
+      style="
+        position:absolute;top:-14px;right:-14px;
+        width:32px;height:32px;
+        background:var(--color-bg-surface);border:1px solid var(--color-border-default);
+        border-radius:50%;
+        font-size:var(--text-sm);color:var(--color-text-secondary);
+        cursor:pointer;display:flex;align-items:center;justify-content:center;
+        transition:background var(--ease-fast);
+      "
+      onmouseover="this.style.background='var(--color-bg-muted)'"
+      onmouseout="this.style.background='var(--color-bg-surface)'"
+    >✕</button>
+  </div>
+</div>
+
+
+<!-- ── Scripts ── -->
+<script>
+  // ── Filter tabs ──
+  function filterComplaints(filter) {
+    document.querySelectorAll('#filterBar button').forEach(btn => {
+      const a = btn.dataset.filter === filter;
+      btn.style.background  = a ? 'var(--color-accent)'   : 'var(--color-bg-surface)';
+      btn.style.color       = a ? '#fff'                  : 'var(--color-text-secondary)';
+      btn.style.borderColor = a ? 'var(--color-accent)'   : 'var(--color-border-default)';
+    });
+    let vis = 0;
+    document.querySelectorAll('.c-card').forEach(card => {
+      const show = filter === 'all' || card.dataset.status === filter;
+      card.style.display = show ? '' : 'none';
+      if (show) vis++;
+    });
+  }
+
+  // ── Status update ──
+  function updateStatus(id, status) {
+    const f = document.createElement('form');
+    f.method = 'POST';
+    f.action = `/apartments/{{ apartment.slug }}/admin/complaints/${id}/status`;
+    f.innerHTML = `<input type="hidden" name="status" value="${status}">`;
+    document.body.appendChild(f);
+    f.submit();
+  }
+
+  // ── Reply form toggle ──
+  function toggleReply(id) {
+    const form   = document.getElementById('replyForm-' + id);
+    const btn    = document.getElementById('replyToggle-' + id);
+    const hidden = form.style.display === 'none';
+    form.style.display = hidden ? 'block' : 'none';
+    btn.textContent    = hidden ? '✕ Cancel' : '+ Reply';
+    if (hidden) {
+      form.querySelector('textarea').focus();
+      btn.style.background  = 'var(--color-accent-subtle)';
+      btn.style.borderColor = 'var(--color-accent-border)';
+      btn.style.color       = 'var(--color-accent)';
+    } else {
+      btn.style.background  = '';
+      btn.style.borderColor = '';
+      btn.style.color       = '';
+    }
+  }
+
+  // ── Lightbox ──
+  function openLightbox(url) {
+    document.getElementById('lightboxImg').src = url;
+    const lb = document.getElementById('lightbox');
+    lb.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+  function closeLightbox() {
+    document.getElementById('lightbox').style.display = 'none';
+    document.body.style.overflow = '';
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeLightbox();
+  });
+</script>
+
+{% endblock %}
